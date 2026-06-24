@@ -3,15 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_error.dart';
 import '../api/dio_client.dart';
 import '../controllers/auth_controller.dart';
-
-// ---------------------------------------------------------------------------
-// Result type returned after a successful OTP verify
-// ---------------------------------------------------------------------------
-class AuthResult {
-  const AuthResult({required this.token, required this.role});
-  final String token;
-  final String role;
-}
+import '../models/user_profile.dart';
+import '../models/verify_otp_result.dart';
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -20,7 +13,6 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final storage = ref.read(secureStorageProvider);
   final dio = DioClient.create(
     storage,
-    // 401 → tell the controller to force-logout (no circular dep: read, not watch)
     () => ref.read(authControllerProvider.notifier).forceLogout(),
   );
   return AuthRepository(dio);
@@ -29,51 +21,51 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 // ---------------------------------------------------------------------------
 // Repository
 // ---------------------------------------------------------------------------
-// INTEGRATION NOTE: After `make gen-api`, replace raw Dio calls below with
-// the generated AuthApi class:
-//   import '../api/generated/lib/src/api/auth_api.dart';
-//   final _api = AuthApi(dio);
-//   await _api.sendOtp(OtpSendRequest(phoneNumber: phoneNumber));
+// INTEGRATION NOTE: After `make gen-api`, replace the raw Dio calls with the
+// generated AuthApi class from lib/api/generated/lib/src/api/auth_api.dart.
+// The method signatures here are intentionally kept thin so the swap is
+// mechanical — only the repository changes, not callers.
 // ---------------------------------------------------------------------------
 class AuthRepository {
   AuthRepository(this._dio);
   final Dio _dio;
 
-  /// Returns null; throws [ApiError] on failure.
-  Future<void> sendOtp(String phoneNumber) async {
+  /// POST /auth/request-otp — throws [ApiError] on failure.
+  Future<void> requestOtp(String phone) async {
     try {
       await _dio.post<void>(
-        '/auth/otp/send',
-        data: {'phone_number': phoneNumber},
+        '/auth/request-otp',
+        data: {'phone': phone},
       );
     } on DioException catch (e) {
       throw DioClient.handleDioError(e);
     }
   }
 
-  /// Returns [AuthResult] on success; throws [ApiError] on failure.
-  Future<AuthResult> verifyOtp(String phoneNumber, String otp) async {
+  /// POST /auth/verify-otp — returns [VerifyOtpResult]; throws [ApiError].
+  ///
+  /// Error taxonomy from the backend:
+  ///   400 → wrong / malformed code
+  ///   401 → OTP expired
+  ///   429 → too many attempts
+  Future<VerifyOtpResult> verifyOtp(String phone, String code) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        '/auth/otp/verify',
-        data: {'phone_number': phoneNumber, 'otp': otp},
+        '/auth/verify-otp',
+        data: {'phone': phone, 'code': code},
       );
-      final data = response.data!;
-      return AuthResult(
-        token: data['access_token'] as String,
-        role: data['role'] as String,
-      );
+      return VerifyOtpResult.fromJson(response.data!);
     } on DioException catch (e) {
       throw DioClient.handleDioError(e);
     }
   }
 
-  /// Refreshes role + profile. Call on every app launch/resume per CLAUDE.md.
-  /// Returns the role string ("user" | "agent").
-  Future<String> getMe() async {
+  /// GET /auth/me — returns [UserProfile]; throws [ApiError].
+  /// Call on every app launch and resume (CLAUDE.md contract rule).
+  Future<UserProfile> getMe() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>('/auth/me');
-      return response.data!['role'] as String;
+      return UserProfile.fromJson(response.data!);
     } on DioException catch (e) {
       throw DioClient.handleDioError(e);
     }

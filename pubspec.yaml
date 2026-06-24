@@ -45,6 +45,9 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.0
 
+  # Testing
+  mocktail: ^1.0.3
+
   # Code generation
   build_runner: ^2.4.9
   freezed: ^2.5.2

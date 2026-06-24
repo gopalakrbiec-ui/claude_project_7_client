@@ -17,14 +17,14 @@
       }
     },
     "schemas": {
-      "OtpSendRequest": {
+      "OtpRequestRequest": {
         "type": "object",
-        "required": ["phone_number"],
+        "required": ["phone"],
         "properties": {
-          "phone_number": { "type": "string", "example": "+919876543210" }
+          "phone": { "type": "string", "example": "+919876543210" }
         }
       },
-      "OtpSendResponse": {
+      "OtpRequestResponse": {
         "type": "object",
         "properties": {
           "message": { "type": "string" }
@@ -32,28 +32,30 @@
       },
       "OtpVerifyRequest": {
         "type": "object",
-        "required": ["phone_number", "otp"],
+        "required": ["phone", "code"],
         "properties": {
-          "phone_number": { "type": "string" },
-          "otp": { "type": "string", "example": "123456" }
+          "phone": { "type": "string" },
+          "code": { "type": "string", "example": "123456" }
         }
       },
       "OtpVerifyResponse": {
         "type": "object",
-        "required": ["access_token", "token_type", "role"],
+        "required": ["access_token", "token_type", "role", "is_new_user"],
         "properties": {
           "access_token": { "type": "string" },
           "token_type": { "type": "string", "example": "bearer" },
-          "role": { "type": "string", "enum": ["user", "agent"] }
+          "role": { "type": "string", "enum": ["user", "agent"] },
+          "is_new_user": { "type": "boolean" }
         }
       },
       "UserProfile": {
         "type": "object",
-        "required": ["id", "phone_number", "role"],
+        "required": ["id", "phone", "role"],
         "properties": {
           "id": { "type": "string", "format": "uuid" },
-          "phone_number": { "type": "string" },
+          "phone": { "type": "string" },
           "name": { "type": "string", "nullable": true },
+          "preferred_language": { "type": "string", "nullable": true, "enum": ["en", "hi", "te"] },
           "role": { "type": "string", "enum": ["user", "agent"] },
           "created_at": { "type": "string", "format": "date-time" }
         }
@@ -243,17 +245,17 @@
   },
   "security": [{ "bearerAuth": [] }],
   "paths": {
-    "/auth/otp/send": {
+    "/auth/request-otp": {
       "post": {
         "tags": ["auth"],
-        "operationId": "sendOtp",
+        "operationId": "requestOtp",
         "security": [],
-        "summary": "Send OTP to phone number",
+        "summary": "Send OTP to an Indian mobile number",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/OtpSendRequest" }
+              "schema": { "$ref": "#/components/schemas/OtpRequestRequest" }
             }
           }
         },
@@ -262,20 +264,21 @@
             "description": "OTP sent",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/OtpSendResponse" }
+                "schema": { "$ref": "#/components/schemas/OtpRequestResponse" }
               }
             }
           },
-          "422": { "description": "Validation error" }
+          "422": { "description": "Validation error" },
+          "429": { "description": "Too many requests" }
         }
       }
     },
-    "/auth/otp/verify": {
+    "/auth/verify-otp": {
       "post": {
         "tags": ["auth"],
         "operationId": "verifyOtp",
         "security": [],
-        "summary": "Verify OTP and get JWT + role",
+        "summary": "Verify OTP and receive JWT + role + is_new_user",
         "requestBody": {
           "required": true,
           "content": {
@@ -286,14 +289,16 @@
         },
         "responses": {
           "200": {
-            "description": "JWT token + role",
+            "description": "JWT token, role, and new-user flag",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/OtpVerifyResponse" }
               }
             }
           },
-          "401": { "description": "Invalid OTP" }
+          "400": { "description": "Wrong OTP" },
+          "401": { "description": "OTP expired" },
+          "429": { "description": "Too many attempts" }
         }
       }
     },
