@@ -1,0 +1,582 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AI Life-Event Editor API",
+    "version": "0.1.0",
+    "description": "Backend for the rural-India AI life-event editing app. This file is the SINGLE SOURCE OF TRUTH for request/response shapes; do NOT hand-write Dart models that duplicate it. Refresh with: make sync-contract"
+  },
+  "servers": [
+    { "url": "https://claudeproject7-production.up.railway.app", "description": "Production" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "OtpSendRequest": {
+        "type": "object",
+        "required": ["phone_number"],
+        "properties": {
+          "phone_number": { "type": "string", "example": "+919876543210" }
+        }
+      },
+      "OtpSendResponse": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" }
+        }
+      },
+      "OtpVerifyRequest": {
+        "type": "object",
+        "required": ["phone_number", "otp"],
+        "properties": {
+          "phone_number": { "type": "string" },
+          "otp": { "type": "string", "example": "123456" }
+        }
+      },
+      "OtpVerifyResponse": {
+        "type": "object",
+        "required": ["access_token", "token_type", "role"],
+        "properties": {
+          "access_token": { "type": "string" },
+          "token_type": { "type": "string", "example": "bearer" },
+          "role": { "type": "string", "enum": ["user", "agent"] }
+        }
+      },
+      "UserProfile": {
+        "type": "object",
+        "required": ["id", "phone_number", "role"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "phone_number": { "type": "string" },
+          "name": { "type": "string", "nullable": true },
+          "role": { "type": "string", "enum": ["user", "agent"] },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreditsBalance": {
+        "type": "object",
+        "required": ["balance_paise", "balance_rupees"],
+        "properties": {
+          "balance_paise": {
+            "type": "integer",
+            "description": "Raw paise value — use only for internal logic, never display"
+          },
+          "balance_rupees": {
+            "type": "string",
+            "description": "Pre-formatted display string from the server (e.g. '₹12.50') — always use this for display"
+          },
+          "last_updated": { "type": "string", "format": "date-time" }
+        }
+      },
+      "TopUpRequest": {
+        "type": "object",
+        "required": ["amount_paise", "upi_transaction_id"],
+        "properties": {
+          "amount_paise": { "type": "integer", "minimum": 1 },
+          "upi_transaction_id": { "type": "string" }
+        }
+      },
+      "TopUpResponse": {
+        "type": "object",
+        "required": ["balance_paise", "balance_rupees", "transaction_id"],
+        "properties": {
+          "balance_paise": { "type": "integer" },
+          "balance_rupees": { "type": "string" },
+          "transaction_id": { "type": "string", "format": "uuid" }
+        }
+      },
+      "TemplateField": {
+        "type": "object",
+        "required": ["key", "label", "type", "required"],
+        "properties": {
+          "key": { "type": "string" },
+          "label": { "type": "string" },
+          "type": { "type": "string", "enum": ["text", "date", "photo"] },
+          "required": { "type": "boolean" },
+          "max_length": { "type": "integer", "nullable": true }
+        }
+      },
+      "Template": {
+        "type": "object",
+        "required": ["id", "name", "category", "thumbnail_url", "price_paise", "price_display", "fields"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "category": { "type": "string", "example": "wedding" },
+          "thumbnail_url": { "type": "string", "format": "uri" },
+          "price_paise": { "type": "integer", "description": "Used for logic only" },
+          "price_display": { "type": "string", "description": "Pre-formatted price for display" },
+          "fields": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TemplateField" }
+          }
+        }
+      },
+      "CreateOrderRequest": {
+        "type": "object",
+        "required": ["idempotency_key", "template_id", "event_details", "language"],
+        "properties": {
+          "idempotency_key": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Client-generated UUID. Generate ONCE per order attempt; REUSE on retry of the same attempt; NEVER regenerate on every tap."
+          },
+          "template_id": { "type": "string", "format": "uuid" },
+          "event_details": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "description": "Key/value map matching the template's field keys"
+          },
+          "language": {
+            "type": "string",
+            "enum": ["en", "hi", "te"],
+            "description": "User's selected language; sent with every order"
+          },
+          "photo_url": { "type": "string", "format": "uri", "nullable": true }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "required": ["id", "status", "template_id", "price_paise", "price_display", "created_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "status": {
+            "type": "string",
+            "enum": ["pending_payment", "processing", "completed", "failed"]
+          },
+          "template_id": { "type": "string", "format": "uuid" },
+          "price_paise": { "type": "integer" },
+          "price_display": { "type": "string" },
+          "result_url": { "type": "string", "format": "uri", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreatePaymentOrderRequest": {
+        "type": "object",
+        "required": ["amount_paise"],
+        "properties": {
+          "amount_paise": { "type": "integer" }
+        }
+      },
+      "CreatePaymentOrderResponse": {
+        "type": "object",
+        "required": ["key_id", "razorpay_order_id", "amount", "currency"],
+        "properties": {
+          "key_id": {
+            "type": "string",
+            "description": "Always initialise Razorpay with this key_id — NEVER hardcode it"
+          },
+          "razorpay_order_id": { "type": "string" },
+          "amount": { "type": "integer", "description": "Amount in paise" },
+          "currency": { "type": "string", "example": "INR" }
+        }
+      },
+      "VerifyPaymentRequest": {
+        "type": "object",
+        "required": ["razorpay_payment_id", "razorpay_order_id", "razorpay_signature"],
+        "properties": {
+          "razorpay_payment_id": { "type": "string" },
+          "razorpay_order_id": { "type": "string" },
+          "razorpay_signature": { "type": "string" }
+        }
+      },
+      "VerifyPaymentResponse": {
+        "type": "object",
+        "required": ["success", "balance_paise", "balance_rupees"],
+        "properties": {
+          "success": { "type": "boolean" },
+          "balance_paise": { "type": "integer" },
+          "balance_rupees": { "type": "string" }
+        }
+      },
+      "AgentCommissionTransaction": {
+        "type": "object",
+        "required": ["id", "order_id", "amount_paise", "amount_display", "created_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "order_id": { "type": "string", "format": "uuid" },
+          "amount_paise": { "type": "integer" },
+          "amount_display": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AgentCommissions": {
+        "type": "object",
+        "required": ["total_paise", "total_display", "transactions"],
+        "properties": {
+          "total_paise": { "type": "integer" },
+          "total_display": { "type": "string" },
+          "transactions": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/AgentCommissionTransaction" }
+          }
+        }
+      },
+      "AgentCreateOrderRequest": {
+        "type": "object",
+        "required": ["idempotency_key", "template_id", "event_details", "language", "customer_phone"],
+        "properties": {
+          "idempotency_key": { "type": "string", "format": "uuid" },
+          "template_id": { "type": "string", "format": "uuid" },
+          "event_details": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          "language": { "type": "string", "enum": ["en", "hi", "te"] },
+          "customer_phone": { "type": "string" },
+          "photo_url": { "type": "string", "format": "uri", "nullable": true }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["detail"],
+        "properties": {
+          "detail": { "type": "string" }
+        }
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/auth/otp/send": {
+      "post": {
+        "tags": ["auth"],
+        "operationId": "sendOtp",
+        "security": [],
+        "summary": "Send OTP to phone number",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/OtpSendRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP sent",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OtpSendResponse" }
+              }
+            }
+          },
+          "422": { "description": "Validation error" }
+        }
+      }
+    },
+    "/auth/otp/verify": {
+      "post": {
+        "tags": ["auth"],
+        "operationId": "verifyOtp",
+        "security": [],
+        "summary": "Verify OTP and get JWT + role",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/OtpVerifyRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JWT token + role",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/OtpVerifyResponse" }
+              }
+            }
+          },
+          "401": { "description": "Invalid OTP" }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["auth"],
+        "operationId": "getMe",
+        "summary": "Refresh role + profile. Call on every app launch and resume.",
+        "responses": {
+          "200": {
+            "description": "Current user profile and role",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserProfile" }
+              }
+            }
+          },
+          "401": { "description": "Unauthorised" }
+        }
+      }
+    },
+    "/credits/balance": {
+      "get": {
+        "tags": ["credits"],
+        "operationId": "getCreditsBalance",
+        "summary": "Get credit balance. Display balance_rupees; use balance_paise only for logic.",
+        "responses": {
+          "200": {
+            "description": "Credit balance",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CreditsBalance" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/credits/topup": {
+      "post": {
+        "tags": ["credits"],
+        "operationId": "topUpCredits",
+        "summary": "Top up credits via UPI",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TopUpRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated balance after top-up",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TopUpResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/templates": {
+      "get": {
+        "tags": ["templates"],
+        "operationId": "listTemplates",
+        "summary": "List available templates",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of templates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Template" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/templates/{id}": {
+      "get": {
+        "tags": ["templates"],
+        "operationId": "getTemplate",
+        "summary": "Get a single template",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Template detail",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Template" }
+              }
+            }
+          },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/orders": {
+      "post": {
+        "tags": ["orders"],
+        "operationId": "createOrder",
+        "summary": "Create a new order. idempotency_key must be a UUID generated once per attempt and reused on retry.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateOrderRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Order" }
+              }
+            }
+          },
+          "402": { "description": "Insufficient credits" },
+          "409": { "description": "Duplicate order (idempotency key already used for a different order)" }
+        }
+      }
+    },
+    "/orders/{id}": {
+      "get": {
+        "tags": ["orders"],
+        "operationId": "getOrder",
+        "summary": "Poll order status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order status",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Order" }
+              }
+            }
+          },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/orders/{id}/download": {
+      "get": {
+        "tags": ["orders"],
+        "operationId": "downloadOrder",
+        "summary": "Download completed order result",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "302": { "description": "Redirect to result file URL" },
+          "404": { "description": "Not found or not yet complete" }
+        }
+      }
+    },
+    "/payments/create-order": {
+      "post": {
+        "tags": ["payments"],
+        "operationId": "createPaymentOrder",
+        "summary": "Create a Razorpay order. Initialise Razorpay SDK with key_id from the response — never hardcode it.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreatePaymentOrderRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Razorpay order details including key_id",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CreatePaymentOrderResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payments/verify": {
+      "post": {
+        "tags": ["payments"],
+        "operationId": "verifyPayment",
+        "summary": "Verify Razorpay payment signature server-side",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/VerifyPaymentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification result and updated balance",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/VerifyPaymentResponse" }
+              }
+            }
+          },
+          "400": { "description": "Signature verification failed" }
+        }
+      }
+    },
+    "/agent/commissions": {
+      "get": {
+        "tags": ["agent"],
+        "operationId": "getAgentCommissions",
+        "summary": "Get agent's commission history and total earnings (agent role only)",
+        "responses": {
+          "200": {
+            "description": "Commission summary and transaction list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AgentCommissions" }
+              }
+            }
+          },
+          "403": { "description": "Not an agent" }
+        }
+      }
+    },
+    "/agent/orders": {
+      "post": {
+        "tags": ["agent"],
+        "operationId": "agentCreateOrder",
+        "summary": "Agent places an order on behalf of a walk-in customer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AgentCreateOrderRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Order" }
+              }
+            }
+          },
+          "403": { "description": "Not an agent" }
+        }
+      }
+    }
+  }
+}
