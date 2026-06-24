@@ -28,8 +28,10 @@ class DioClient {
       // Retries transient failures on GETs only — never on POSTs.
       // See GetRetryInterceptor for the full safety rationale.
       GetRetryInterceptor(dio),
-      // In debug builds, log requests; omit in release to keep APKs lean.
-      // LogInterceptor(requestBody: true, responseBody: true),
+      // LogInterceptor must NEVER be added in release — it logs full
+      // request/response bodies including JWT tokens.
+      // Add it only in a local debug session via a #if kDebugMode guard:
+      //   if (kDebugMode) dio.interceptors.add(LogInterceptor(requestBody: true));
     ]);
 
     return dio;

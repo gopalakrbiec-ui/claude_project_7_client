@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ── Network ──────────────────────────────────────────────────────── -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- usesCleartextTraffic defaults to false on API 28+ (Android 9).
+         Our backend is HTTPS-only so we do NOT set it to true.
+         If you ever need HTTP during development, use a network security config
+         scoped to the debug buildType only. -->
+
+    <!-- ── Camera / gallery (image_picker) ──────────────────────────────── -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Android 12 and below: read external storage for gallery picker -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"/>
+    <!-- Android 13+: granular media permissions (gal/image_picker use these) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <!-- Save-to-gallery on Android ≤ 9 needs write permission -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"/>
+
+    <!-- ── Camera hardware feature (optional — allows install without camera) -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false"/>
+
+    <application
+        android:name="${applicationName}"
+        android:label="Yaadein"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:enableOnBackInvokedCallback="true"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:theme="@style/LaunchTheme">
+
+        <!-- Flutter activity — single instance keeps memory low on cheap phones -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/NormalTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <!-- Razorpay redirect activity — handles UPI deep-link callbacks -->
+        <activity
+            android:name="com.razorpay.CheckoutActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2"/>
+    </application>
+</manifest>

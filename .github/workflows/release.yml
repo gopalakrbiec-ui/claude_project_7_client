@@ -1,0 +1,84 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"            # triggers on v1.0.0, v1.2.3, etc.
+  workflow_dispatch:        # allow manual runs from the Actions UI
+
+jobs:
+  build:
+    name: Build & sign AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ── Checkout ────────────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+
+      # ── Flutter ─────────────────────────────────────────────────────────────
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # ── Java 17 (required by AGP 8.x) ───────────────────────────────────────
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # ── Dependencies ─────────────────────────────────────────────────────────
+      - name: flutter pub get
+        run: flutter pub get
+
+      # ── Signing credentials ─────────────────────────────────────────────────
+      - name: Decode keystore
+        run: |
+          mkdir -p android/secrets
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode \
+            > android/secrets/yaadein-release.jks
+
+      - name: Write key.properties
+        run: |
+          cat > android/key.properties <<EOF
+          storeFile=../secrets/yaadein-release.jks
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          EOF
+
+      # ── Tests ───────────────────────────────────────────────────────────────
+      - name: Run unit tests
+        run: flutter test
+
+      # ── Build ───────────────────────────────────────────────────────────────
+      - name: Build AAB (release)
+        run: |
+          flutter build appbundle \
+            --release \
+            --dart-define=API_BASE_URL=${{ vars.API_BASE_URL || 'https://claudeproject7-production.up.railway.app' }} \
+            --obfuscate \
+            --split-debug-info=build/debug-symbols/
+
+      # ── Upload artifacts ─────────────────────────────────────────────────────
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-symbols
+          path: build/debug-symbols/
+          retention-days: 90
+
+      # ── Clean up secrets from runner ────────────────────────────────────────
+      - name: Remove signing credentials
+        if: always()
+        run: |
+          rm -f android/secrets/yaadein-release.jks
+          rm -f android/key.properties

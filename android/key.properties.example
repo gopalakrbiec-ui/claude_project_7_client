@@ -1,0 +1,12 @@
+# key.properties.example
+#
+# Copy this to key.properties (in the android/ directory) and fill in real
+# values.  key.properties is git-ignored and must NEVER be committed.
+#
+# CI/CD generates this file at build time from GitHub Actions secrets.
+# See docs/release-signing.md for the full setup instructions.
+
+storeFile=../secrets/yaadein-release.jks
+storePassword=CHANGE_ME
+keyAlias=yaadein
+keyPassword=CHANGE_ME
