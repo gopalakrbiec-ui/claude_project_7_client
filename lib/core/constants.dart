@@ -27,3 +27,7 @@ const String kRoleKey = 'user_role';
 
 // Shared-prefs keys
 const String kLocaleKey = 'selected_locale';
+
+// Template list in-memory cache
+// After this duration the next navigation to home triggers a background refresh.
+const Duration kTemplateCacheTtl = Duration(minutes: 5);

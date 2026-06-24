@@ -2,15 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../controllers/auth_controller.dart';
+import '../../controllers/templates_controller.dart';
 import '../../core/constants.dart';
+import '../../models/template.dart';
+import '../../widgets/balance_chip.dart';
+import '../../widgets/error_view.dart';
+import '../../widgets/skeleton_card.dart';
+import '../../widgets/template_card.dart';
+import '../../widgets/theme_filter_bar.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final role = ref.watch(authControllerProvider).valueOrNull ?? 'user';
-    final isAgent = role == 'agent';
+    final authState = ref.watch(authControllerProvider);
+    final isAgent = authState is AuthAuthenticated && authState.profile.isAgent;
 
     return Scaffold(
       appBar: AppBar(
@@ -22,30 +29,13 @@ class HomeScreen extends ConsumerWidget {
               tooltip: 'My Earnings',
               onPressed: () => context.go('/home/agent-earnings'),
             ),
-          // Balance chip — always visible; value comes from credits repository.
-          // TODO: wire to CreditsController once implemented.
-          Padding(
-            padding: const EdgeInsets.only(right: kSpaceMd),
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: kSpaceSm,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text('₹ —', style: TextStyle(fontWeight: FontWeight.w700)),
-              ),
-            ),
-          ),
+          const BalanceChip(),
         ],
       ),
-      body: const _TemplatePlaceholder(),
+      body: const _TemplateBody(),
       floatingActionButton: isAgent
           ? FloatingActionButton.extended(
-              onPressed: () {/* TODO: agent create order flow */},
+              onPressed: () {/* TODO: agent create-order flow */},
               icon: const Icon(Icons.person_add),
               label: const Text('For Customer'),
             )
@@ -54,37 +44,187 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _TemplatePlaceholder extends StatelessWidget {
-  const _TemplatePlaceholder();
+// ---------------------------------------------------------------------------
+// Body — owns the pull-to-refresh and maps async state to child widgets.
+// ---------------------------------------------------------------------------
+class _TemplateBody extends ConsumerWidget {
+  const _TemplateBody();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(templatesControllerProvider.notifier);
+    final templatesAsync = ref.watch(templatesControllerProvider);
+    final selectedTheme = controller.selectedTheme;
+    final availableThemes = controller.availableThemes;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Filter bar — shown only when we have data or themes to display.
+        if (availableThemes.isNotEmpty || selectedTheme != null)
+          ThemeFilterBar(
+            themes: availableThemes,
+            selected: selectedTheme,
+            onSelected: controller.setTheme,
+          ),
+
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: controller.refresh,
+            child: templatesAsync.when(
+              loading: () => const _SkeletonGrid(),
+              error: (e, _) => _ErrorBody(
+                message: e.toString(),
+                onRetry: controller.refresh,
+              ),
+              data: (templates) => templates.isEmpty
+                  ? _EmptyBody(
+                      hasFilter: selectedTheme != null,
+                      onClear: () => controller.setTheme(null),
+                    )
+                  : _TemplateGrid(templates: templates),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Grid states
+// ---------------------------------------------------------------------------
+class _TemplateGrid extends StatelessWidget {
+  const _TemplateGrid({required this.templates});
+  final List<Template> templates;
+
+  @override
+  Widget build(BuildContext context) {
+    final crossAxisCount = _crossAxisCount(context);
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(kSpaceMd),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: kSpaceSm,
+        mainAxisSpacing: kSpaceSm,
+        // 3:4 card aspect ratio (portrait) — taller card shows more of the image.
+        childAspectRatio: 3 / 4,
+      ),
+      itemCount: templates.length,
+      itemBuilder: (context, i) {
+        final t = templates[i];
+        return TemplateCard(
+          template: t,
+          onTap: () => context.go(
+            '/home/template/${t.id}',
+            extra: t,
+          ),
+        );
+      },
+    );
+  }
+
+  int _crossAxisCount(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width >= 900) return 4; // tablets landscape
+    if (width >= 600) return 3; // tablets portrait / large phones landscape
+    return 2; // standard phone portrait
+  }
+}
+
+class _SkeletonGrid extends StatelessWidget {
+  const _SkeletonGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    final crossAxisCount =
+        MediaQuery.sizeOf(context).width >= 600 ? 3 : 2;
+
+    return SkeletonScope(
+      child: GridView.builder(
+        padding: const EdgeInsets.all(kSpaceMd),
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: kSpaceSm,
+          mainAxisSpacing: kSpaceSm,
+          childAspectRatio: 3 / 4,
+        ),
+        itemCount: 6,
+        itemBuilder: (_, __) => const SkeletonCard(),
+      ),
+    );
+  }
+}
+
+class _ErrorBody extends StatelessWidget {
+  const _ErrorBody({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    // Wrap in a scroll view so RefreshIndicator can still be triggered.
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.7,
+        child: ErrorView(
+          message: _friendlyMessage(message),
+          onRetry: onRetry,
+        ),
+      ),
+    );
+  }
+
+  String _friendlyMessage(String raw) {
+    if (raw.contains('NetworkError') || raw.contains('SocketException')) {
+      return 'No internet connection.\nPull down to retry when you\'re back online.';
+    }
+    return 'Could not load templates.\nPlease try again.';
+  }
+}
+
+class _EmptyBody extends StatelessWidget {
+  const _EmptyBody({required this.hasFilter, required this.onClear});
+  final bool hasFilter;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // TODO: replace with TemplatesController + GridView of real templates.
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.image_search, size: 80, color: theme.colorScheme.primary),
-          const SizedBox(height: kSpaceLg),
-          Text(
-            'Templates load here',
-            style: theme.textTheme.titleLarge,
-          ),
-          const SizedBox(height: kSpaceSm),
-          Text(
-            'Run make gen-api then wire the\nTemplatesController to this screen.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.6,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(kSpaceLg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.image_search,
+                    size: 72, color: theme.colorScheme.outlineVariant),
+                const SizedBox(height: kSpaceLg),
+                Text(
+                  hasFilter
+                      ? 'No templates for this theme'
+                      : 'No templates available',
+                  style: theme.textTheme.titleLarge?.copyWith(fontSize: 18),
+                  textAlign: TextAlign.center,
+                ),
+                if (hasFilter) ...[
+                  const SizedBox(height: kSpaceMd),
+                  OutlinedButton(
+                    onPressed: onClear,
+                    child: const Text('Clear filter'),
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: kSpaceLg),
-          OutlinedButton(
-            onPressed: () => context.go('/home/template/demo-id'),
-            child: const Text('Open demo template →'),
-          ),
-        ],
+        ),
       ),
     );
   }

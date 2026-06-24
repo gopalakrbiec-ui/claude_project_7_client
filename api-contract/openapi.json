@@ -92,30 +92,22 @@
           "transaction_id": { "type": "string", "format": "uuid" }
         }
       },
-      "TemplateField": {
-        "type": "object",
-        "required": ["key", "label", "type", "required"],
-        "properties": {
-          "key": { "type": "string" },
-          "label": { "type": "string" },
-          "type": { "type": "string", "enum": ["text", "date", "photo"] },
-          "required": { "type": "boolean" },
-          "max_length": { "type": "integer", "nullable": true }
-        }
-      },
       "Template": {
         "type": "object",
-        "required": ["id", "name", "category", "thumbnail_url", "price_paise", "price_display", "fields"],
+        "required": ["id", "name", "language", "theme", "base_price_paise", "asset_keys"],
         "properties": {
           "id": { "type": "string", "format": "uuid" },
           "name": { "type": "string" },
-          "category": { "type": "string", "example": "wedding" },
-          "thumbnail_url": { "type": "string", "format": "uri" },
-          "price_paise": { "type": "integer", "description": "Used for logic only" },
-          "price_display": { "type": "string", "description": "Pre-formatted price for display" },
-          "fields": {
+          "language": { "type": "string", "enum": ["en", "hi", "te"] },
+          "theme": { "type": "string", "example": "floral" },
+          "base_price_paise": {
+            "type": "integer",
+            "description": "Raw paise — use for affordability logic only. The formatted display is computed from this value."
+          },
+          "asset_keys": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/TemplateField" }
+            "items": { "type": "string" },
+            "description": "Ordered list of CDN asset keys / URLs. First entry is the thumbnail."
           }
         }
       },
@@ -366,13 +358,21 @@
       "get": {
         "tags": ["templates"],
         "operationId": "listTemplates",
-        "summary": "List available templates",
+        "summary": "List templates filtered by language and optional theme",
         "parameters": [
           {
-            "name": "category",
+            "name": "language",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "enum": ["en", "hi", "te"] },
+            "description": "Filter by the user's chosen language"
+          },
+          {
+            "name": "theme",
             "in": "query",
             "required": false,
-            "schema": { "type": "string" }
+            "schema": { "type": "string" },
+            "description": "Optional theme filter (e.g. floral, wedding, birthday)"
           }
         ],
         "responses": {

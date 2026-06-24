@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/locale_controller.dart';
 import '../screens/language_select/language_select_screen.dart';
+import '../models/template.dart';
 import '../screens/login/phone_entry_screen.dart';
 import '../screens/login/otp_entry_screen.dart';
 import '../screens/home/home_screen.dart';
@@ -97,8 +98,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: 'template/:id',
-            builder: (_, state) =>
-                TemplateDetailScreen(templateId: state.pathParameters['id']!),
+            builder: (_, state) => TemplateDetailScreen(
+              templateId: state.pathParameters['id']!,
+              // extra is a Template when navigating from the grid;
+              // null on deep-links (detail screen falls back to cache / fetch).
+              preloaded: state.extra is Template ? state.extra as Template : null,
+            ),
           ),
           GoRoute(
             path: 'create-order/:templateId',
