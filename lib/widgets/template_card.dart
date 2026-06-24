@@ -84,9 +84,10 @@ class _Thumbnail extends StatelessWidget {
     return CachedNetworkImage(
       imageUrl: assetKey!,
       fit: BoxFit.cover,
-      // CachedNetworkImage uses its own disk+memory cache by default —
-      // images survive process restarts and are not re-downloaded on
-      // every navigation event or network hiccup.
+      // Decode at thumbnail size — avoids holding full-res bitmaps in RAM for
+      // a grid of small cards.  300 px covers ~2× a 150-dp card at 1× density.
+      memCacheWidth: 300,
+      memCacheHeight: 400,
       placeholder: (_, __) => ColoredBox(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
       ),

@@ -53,6 +53,9 @@ dependencies:
   gal: ^2.3.0
   path_provider: ^2.1.4
 
+  # Offline detection
+  connectivity_plus: ^6.0.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

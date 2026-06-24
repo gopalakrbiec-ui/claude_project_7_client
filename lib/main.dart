@@ -6,6 +6,7 @@ import 'controllers/auth_controller.dart';
 import 'controllers/locale_controller.dart';
 import 'core/router.dart';
 import 'core/theme.dart';
+import 'widgets/offline_banner.dart';
 
 void main() {
   runApp(const ProviderScope(child: App()));
@@ -44,6 +45,15 @@ class _AppState extends ConsumerState<App> {
       title: 'Yaadein',
       theme: buildAppTheme(),
       routerConfig: router,
+
+      // Global offline banner — sits above all screens via the builder hook.
+      // Takes zero height when online; slides in when connectivity is lost.
+      builder: (context, child) => Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(child: child ?? const SizedBox()),
+        ],
+      ),
 
       // i18n
       locale: locale,

@@ -159,9 +159,13 @@ class _LargePreview extends StatelessWidget {
         child: const Center(child: Icon(Icons.image_outlined, size: 64)),
       );
     }
+    // Decode at a reasonable preview size — this is a detail image, not a
+    // thumbnail, so we allow more pixels but still cap to avoid OOM on cheap
+    // phones with large source assets.
     return CachedNetworkImage(
       imageUrl: key,
       fit: BoxFit.contain,
+      memCacheWidth: 800,
       placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
       errorWidget: (_, __, ___) =>
           const Center(child: Icon(Icons.broken_image_outlined, size: 64)),

@@ -122,7 +122,13 @@ class _OrderStatusScreenState extends ConsumerState<OrderStatusScreen> {
     final dir = await getTemporaryDirectory();
     final path =
         '${dir.path}/result_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    await Dio().download(url, path);
+    // Use a bounded Dio instance — bare Dio() has no timeout and can hang
+    // indefinitely on a flaky rural network.
+    final dio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 60),
+    ));
+    await dio.download(url, path);
     return File(path);
   }
 
@@ -386,13 +392,25 @@ class _ResultImage extends StatelessWidget {
             child: Icon(Icons.image_outlined, size: 72)),
       );
     }
-    return CachedNetworkImage(
-      imageUrl: url!,
-      fit: BoxFit.contain,
-      placeholder: (_, __) =>
-          const Center(child: CircularProgressIndicator()),
-      errorWidget: (_, __, ___) => const Center(
-          child: Icon(Icons.broken_image_outlined, size: 72)),
+    // Decode at the physical render width so the bitmap is not larger than
+    // what the screen can actually display.  LayoutBuilder gives us logical
+    // pixels; multiply by devicePixelRatio to get physical pixels (what
+    // memCacheWidth expects).
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final dpr = MediaQuery.devicePixelRatioOf(context);
+        final cacheWidth =
+            (constraints.maxWidth * dpr).clamp(1.0, 1080.0).toInt();
+        return CachedNetworkImage(
+          imageUrl: url!,
+          fit: BoxFit.contain,
+          memCacheWidth: cacheWidth,
+          placeholder: (_, __) =>
+              const Center(child: CircularProgressIndicator()),
+          errorWidget: (_, __, ___) => const Center(
+              child: Icon(Icons.broken_image_outlined, size: 72)),
+        );
+      },
     );
   }
 }

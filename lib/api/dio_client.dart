@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../core/constants.dart';
 import 'api_error.dart';
+import 'retry_interceptor.dart';
 
 // ---------------------------------------------------------------------------
 // Factory — call DioClient.create() once; store in a Riverpod provider.
@@ -24,6 +25,9 @@ class DioClient {
 
     dio.interceptors.addAll([
       _JwtInterceptor(storage, dio, onUnauthorised),
+      // Retries transient failures on GETs only — never on POSTs.
+      // See GetRetryInterceptor for the full safety rationale.
+      GetRetryInterceptor(dio),
       // In debug builds, log requests; omit in release to keep APKs lean.
       // LogInterceptor(requestBody: true, responseBody: true),
     ]);

@@ -27,6 +27,13 @@ const int kOrderPollMaxAttempts = 40;
 // Legacy alias kept so TopupController test helpers compile.
 const Duration kOrderPollInterval = kOrderPollInitialDelay;
 
+// GET-only auto-retry (never applied to POST/PUT/DELETE)
+// Backoff: 1 s → 2 s → 4 s, then give up and let the controller decide.
+// Three attempts means at most 7 extra seconds on a flaky connection — acceptable
+// for a slow rural network but not so long it feels broken.
+const int kGetMaxRetries = 3;
+const Duration kGetRetryBaseDelay = Duration(seconds: 1);
+
 // Secure storage keys
 const String kTokenKey = 'jwt_token';
 const String kRoleKey = 'user_role';

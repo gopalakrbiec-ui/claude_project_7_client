@@ -39,6 +39,8 @@ class AgentEarningsScreen extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => _ErrorBody(
             message: _friendlyError(e.toString()),
+            isOffline: e.toString().contains('NetworkError') ||
+                e.toString().contains('SocketException'),
             onRetry: () =>
                 ref.read(agentEarningsControllerProvider.notifier).refresh(),
           ),
@@ -227,9 +229,14 @@ class _EmptyEarnings extends StatelessWidget {
 
 // ---------------------------------------------------------------------------
 class _ErrorBody extends StatelessWidget {
-  const _ErrorBody({required this.message, required this.onRetry});
+  const _ErrorBody({
+    required this.message,
+    required this.onRetry,
+    this.isOffline = false,
+  });
   final String message;
   final VoidCallback onRetry;
+  final bool isOffline;
 
   @override
   Widget build(BuildContext context) {
@@ -237,7 +244,12 @@ class _ErrorBody extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       child: SizedBox(
         height: MediaQuery.sizeOf(context).height * 0.7,
-        child: ErrorView(message: message, onRetry: onRetry),
+        child: ErrorView(
+          message: message,
+          onRetry: onRetry,
+          isOffline: isOffline,
+          icon: isOffline ? Icons.wifi_off_outlined : Icons.error_outline,
+        ),
       ),
     );
   }
