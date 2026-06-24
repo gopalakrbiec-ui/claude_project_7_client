@@ -1,0 +1,126 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "Yaadein",
+  "@appTitle": { "description": "App display name" },
+
+  "languageSelectTitle": "Choose Your Language",
+  "@languageSelectTitle": {},
+
+  "languageSelectSubtitle": "Select a language to continue",
+  "@languageSelectSubtitle": {},
+
+  "continueButton": "Continue",
+  "@continueButton": {},
+
+  "loginTitle": "Enter your mobile number",
+  "@loginTitle": {},
+
+  "loginSubtitle": "We'll send a one-time password to verify",
+  "@loginSubtitle": {},
+
+  "mobileNumberLabel": "Mobile Number",
+  "@mobileNumberLabel": {},
+
+  "mobileNumberHint": "+91 98765 43210",
+  "@mobileNumberHint": {},
+
+  "sendOtpButton": "Send OTP",
+  "@sendOtpButton": {},
+
+  "otpLabel": "One-Time Password",
+  "@otpLabel": {},
+
+  "otpHint": "6-digit code",
+  "@otpHint": {},
+
+  "verifyButton": "Verify & Login",
+  "@verifyButton": {},
+
+  "resendOtp": "Resend OTP",
+  "@resendOtp": {},
+
+  "homeTitle": "Choose a Template",
+  "@homeTitle": {},
+
+  "balanceLabel": "Balance: {balance}",
+  "@balanceLabel": {
+    "placeholders": {
+      "balance": { "type": "String" }
+    }
+  },
+
+  "topUpButton": "Top Up",
+  "@topUpButton": {},
+
+  "templateDetailTitle": "Template Details",
+  "@templateDetailTitle": {},
+
+  "createOrderButton": "Create",
+  "@createOrderButton": {},
+
+  "priceLabel": "Price: {price}",
+  "@priceLabel": {
+    "placeholders": {
+      "price": { "type": "String" }
+    }
+  },
+
+  "createOrderTitle": "Event Details",
+  "@createOrderTitle": {},
+
+  "addPhotoButton": "Add Photo",
+  "@addPhotoButton": {},
+
+  "paymentTitle": "Payment",
+  "@paymentTitle": {},
+
+  "payButton": "Pay {price}",
+  "@payButton": {
+    "placeholders": {
+      "price": { "type": "String" }
+    }
+  },
+
+  "orderStatusTitle": "Your Order",
+  "@orderStatusTitle": {},
+
+  "orderProcessing": "We're creating your design…",
+  "@orderProcessing": {},
+
+  "orderCompleted": "Your design is ready!",
+  "@orderCompleted": {},
+
+  "orderFailed": "Something went wrong with your order.",
+  "@orderFailed": {},
+
+  "shareWhatsApp": "Share on WhatsApp",
+  "@shareWhatsApp": {},
+
+  "downloadButton": "Download",
+  "@downloadButton": {},
+
+  "agentEarningsTitle": "My Earnings",
+  "@agentEarningsTitle": {},
+
+  "totalEarned": "Total Earned",
+  "@totalEarned": {},
+
+  "placeOrderForCustomer": "Place Order for Customer",
+  "@placeOrderForCustomer": {},
+
+  "loading": "Loading…",
+  "@loading": {},
+
+  "errorGeneric": "Something went wrong. Please try again.",
+  "@errorGeneric": {},
+
+  "retryButton": "Retry",
+  "@retryButton": {},
+
+  "noInternetError": "No internet connection. Please check your network.",
+  "@noInternetError": {},
+
+  "logoutButton": "Logout",
+  "@logoutButton": {}
+}
