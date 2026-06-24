@@ -89,4 +89,18 @@ class OrdersRepository {
       throw DioClient.handleDioError(e);
     }
   }
+
+  /// POST /orders/{id}/remove-watermark
+  /// Backend debits credits and returns the clean (unwatermarked) URL.
+  /// Throws ServerError(402) if the user has insufficient credits.
+  Future<String> removeWatermark(String orderId) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/orders/$orderId/remove-watermark',
+      );
+      return response.data!['clean_url'] as String;
+    } on DioException catch (e) {
+      throw DioClient.handleDioError(e);
+    }
+  }
 }

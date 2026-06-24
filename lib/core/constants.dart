@@ -17,9 +17,15 @@ const double kSpaceXl = 32.0;
 const Duration kConnectTimeout = Duration(seconds: 10);
 const Duration kReceiveTimeout = Duration(seconds: 30);
 
-// Polling
-const Duration kOrderPollInterval = Duration(seconds: 3);
-const int kOrderPollMaxAttempts = 40; // 2 minutes
+// Order-status polling — exponential backoff
+// Sequence: 3s → 4.5s → 6.75s → 10.1s → 15.2s → 22.8s → 30s (cap)
+// Covers the 30–120 s typical AI generation window cheaply, then slows to
+// 30 s intervals.  Total with 40 attempts ≈ 18 minutes before timeout.
+const Duration kOrderPollInitialDelay = Duration(seconds: 3);
+const Duration kOrderPollMaxDelay = Duration(seconds: 30);
+const int kOrderPollMaxAttempts = 40;
+// Legacy alias kept so TopupController test helpers compile.
+const Duration kOrderPollInterval = kOrderPollInitialDelay;
 
 // Secure storage keys
 const String kTokenKey = 'jwt_token';
