@@ -35,11 +35,45 @@ class HomeScreen extends ConsumerWidget {
       body: const _TemplateBody(),
       floatingActionButton: isAgent
           ? FloatingActionButton.extended(
-              onPressed: () {/* TODO: agent create-order flow */},
+              onPressed: () => _showAgentHint(context),
               icon: const Icon(Icons.person_add),
               label: const Text('For Customer'),
             )
           : null,
+    );
+  }
+
+  void _showAgentHint(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Place Order for Customer',
+                style: Theme.of(ctx).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Select any template from the grid above. During order creation '
+                'you can optionally enter the customer\'s phone number.',
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Got it'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

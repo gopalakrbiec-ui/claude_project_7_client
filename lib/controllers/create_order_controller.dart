@@ -25,6 +25,7 @@ class CreateOrderState {
     this.eventDate,
     this.mediaType = 'image',
     this.photoFile,
+    this.customerPhone,
     this.status = CreateOrderStatus.idle,
     this.errorMessage,
     this.createdOrder,
@@ -36,6 +37,9 @@ class CreateOrderState {
   final DateTime? eventDate;
   final String mediaType;
   final File? photoFile;
+  /// Agent-only: the customer's phone number, sent in input_payload.
+  /// Null (and hidden from the form) for consumer accounts.
+  final String? customerPhone;
   final CreateOrderStatus status;
   final String? errorMessage;
   final Order? createdOrder;
@@ -52,6 +56,8 @@ class CreateOrderState {
     String? mediaType,
     File? photoFile,
     bool clearPhoto = false,
+    String? customerPhone,
+    bool clearCustomerPhone = false,
     CreateOrderStatus? status,
     String? errorMessage,
     bool clearError = false,
@@ -64,6 +70,9 @@ class CreateOrderState {
       eventDate: clearEventDate ? null : (eventDate ?? this.eventDate),
       mediaType: mediaType ?? this.mediaType,
       photoFile: clearPhoto ? null : (photoFile ?? this.photoFile),
+      customerPhone: clearCustomerPhone
+          ? null
+          : (customerPhone ?? this.customerPhone),
       status: status ?? this.status,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       createdOrder: createdOrder ?? this.createdOrder,
@@ -112,6 +121,9 @@ class CreateOrderController
           ? state.copyWith(clearPhoto: true)
           : state.copyWith(photoFile: file);
 
+  void setCustomerPhone(String value) => state = state.copyWith(
+      customerPhone: value.trim().isEmpty ? null : value.trim());
+
   // -- Submit ---------------------------------------------------------------
 
   Future<void> submit(Template template) async {
@@ -144,6 +156,7 @@ class CreateOrderController
               language: language,
               mediaType: state.mediaType,
               photoFile: compressedPhoto,
+              customerPhone: state.customerPhone,
             ),
           );
 

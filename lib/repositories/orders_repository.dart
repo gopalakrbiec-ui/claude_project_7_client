@@ -25,6 +25,7 @@ class CreateOrderParams {
     required this.language,
     required this.mediaType,
     this.photoFile,
+    this.customerPhone,
   });
 
   final String templateId;
@@ -35,6 +36,9 @@ class CreateOrderParams {
   final String language;
   final String mediaType; // "image" | "video"
   final File? photoFile;
+  /// Agent-only: forwarded in input_payload.customer_phone.
+  /// Backend infers the agent role from the JWT; this is purely metadata.
+  final String? customerPhone;
 }
 
 class OrdersRepository {
@@ -71,6 +75,9 @@ class OrdersRepository {
                 'theme': params.theme,
                 'language': params.language,
                 'media_type': params.mediaType,
+                if (params.customerPhone != null &&
+                    params.customerPhone!.isNotEmpty)
+                  'customer_phone': params.customerPhone,
               },
             }));
 

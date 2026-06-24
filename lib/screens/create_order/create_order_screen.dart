@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
+import '../../controllers/auth_controller.dart';
 import '../../controllers/create_order_controller.dart';
 import '../../controllers/credits_controller.dart';
 import '../../controllers/templates_controller.dart';
@@ -71,16 +72,19 @@ class _CreateOrderContent extends ConsumerStatefulWidget {
 class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
+  late final TextEditingController _phoneController;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController();
+    _phoneController = TextEditingController();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -95,6 +99,7 @@ class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
     final balanceAsync = ref.watch(creditsControllerProvider);
     final canAfford =
         balanceAsync.valueOrNull?.canAfford(_template.basePricePaise) ?? true;
+    final isAgent = ref.watch(isAgentProvider);
     final theme = Theme.of(context);
 
     // Navigate to order-status once order is created.
@@ -154,7 +159,17 @@ class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
               photo: state.photoFile,
               onPick: (file) => ctrl.setPhoto(file),
             ),
-            const SizedBox(height: kSpaceLg),
+            const SizedBox(height: kSpaceMd),
+
+            // Agent-only: customer phone
+            if (isAgent) ...[
+              _CustomerPhoneField(
+                controller: _phoneController,
+                onChanged: ctrl.setCustomerPhone,
+              ),
+              const SizedBox(height: kSpaceMd),
+            ],
+            const SizedBox(height: kSpaceSm),
 
             // Insufficient credits warning
             if (balanceAsync.hasValue && !canAfford) ...[
@@ -415,6 +430,29 @@ class _InsufficientCreditsWarning extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _CustomerPhoneField extends StatelessWidget {
+  const _CustomerPhoneField({
+    required this.controller,
+    required this.onChanged,
+  });
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      decoration: const InputDecoration(
+        labelText: 'Customer Phone (optional)',
+        hintText: '+91 98765 43210',
+        prefixIcon: Icon(Icons.phone_outlined),
+      ),
+      keyboardType: TextInputType.phone,
+      onChanged: onChanged,
     );
   }
 }

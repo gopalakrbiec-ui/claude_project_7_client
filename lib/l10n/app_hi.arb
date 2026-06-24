@@ -57,5 +57,18 @@
   "proceedToPayment": "भुगतान पर आगे बढ़ें",
   "insufficientCredits": "अपर्याप्त क्रेडिट। डिज़ाइन बनाने के लिए टॉप अप करें।",
   "topUpCredits": "क्रेडिट टॉप अप करें",
-  "noInternetRetry": "इंटरनेट कनेक्शन नहीं है। कृपया पुनः प्रयास करें।"
+  "noInternetRetry": "इंटरनेट कनेक्शन नहीं है। कृपया पुनः प्रयास करें।",
+
+  "agentEarningsScreenTitle": "मेरी कमाई",
+  "totalCommissionEarned": "कुल कमीशन अर्जित",
+  "recentCommissions": "हाल की कमीशन",
+  "noEarningsYet": "अभी तक कोई कमाई नहीं",
+  "noEarningsHint": "कमीशन कमाने के लिए ग्राहकों के लिए ऑर्डर करें।",
+  "orderForCustomer": "{name} के लिए ऑर्डर",
+  "orderShortId": "ऑर्डर #{id}",
+  "customerPhoneLabel": "ग्राहक का फ़ोन (वैकल्पिक)",
+  "customerPhoneHint": "+91 98765 43210",
+  "placeOrderForCustomerTitle": "ग्राहक के लिए ऑर्डर करें",
+  "agentOrderHint": "ऊपर दिए गए ग्रिड से कोई भी टेम्पलेट चुनें। ऑर्डर बनाते समय आप ग्राहक का फ़ोन नंबर वैकल्पिक रूप से दर्ज कर सकते हैं।",
+  "gotIt": "समझ गया"
 }

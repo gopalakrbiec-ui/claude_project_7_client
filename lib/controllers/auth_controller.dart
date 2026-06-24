@@ -39,6 +39,22 @@ final class AuthAuthenticated extends AuthState {
 }
 
 // ---------------------------------------------------------------------------
+// Derived role provider
+// ---------------------------------------------------------------------------
+// Single reactive bool watched by all role-gated widgets and the router.
+// Updates automatically whenever /auth/me refreshes the profile (launch,
+// resume, or manual refresh), so role changes propagate without navigation.
+//
+// Why not read role from secure storage directly in widgets?
+// Secure storage is async; this derived Provider is synchronous and
+// composable — the router and every widget get the same consistent value
+// with no await/FutureBuilder.
+final isAgentProvider = Provider<bool>((ref) {
+  final auth = ref.watch(authControllerProvider);
+  return auth is AuthAuthenticated && auth.profile.isAgent;
+});
+
+// ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
 final authControllerProvider =

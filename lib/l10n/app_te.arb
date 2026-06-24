@@ -57,5 +57,18 @@
   "proceedToPayment": "చెల్లింపుకు వెళ్ళండి",
   "insufficientCredits": "క్రెడిట్లు సరిపోవు. ఈ డిజైన్ సృష్టించడానికి టాప్ అప్ చేయండి.",
   "topUpCredits": "క్రెడిట్లు టాప్ అప్ చేయండి",
-  "noInternetRetry": "ఇంటర్నెట్ కనెక్షన్ లేదు. దయచేసి మళ్ళీ ప్రయత్నించండి."
+  "noInternetRetry": "ఇంటర్నెట్ కనెక్షన్ లేదు. దయచేసి మళ్ళీ ప్రయత్నించండి.",
+
+  "agentEarningsScreenTitle": "నా సంపాదన",
+  "totalCommissionEarned": "మొత్తం కమీషన్ సంపాదించారు",
+  "recentCommissions": "ఇటీవలి కమీషన్లు",
+  "noEarningsYet": "ఇంకా సంపాదన లేదు",
+  "noEarningsHint": "కమీషన్ సంపాదించడానికి కస్టమర్లకు ఆర్డర్లు చేయండి.",
+  "orderForCustomer": "{name} కోసం ఆర్డర్",
+  "orderShortId": "ఆర్డర్ #{id}",
+  "customerPhoneLabel": "కస్టమర్ ఫోన్ (ఐచ్ఛికం)",
+  "customerPhoneHint": "+91 98765 43210",
+  "placeOrderForCustomerTitle": "కస్టమర్ కోసం ఆర్డర్ చేయండి",
+  "agentOrderHint": "పైన ఉన్న గ్రిడ్ నుండి ఏదైనా టెంప్లేట్ ఎంచుకోండి. ఆర్డర్ సృష్టించేటప్పుడు మీరు కస్టమర్ ఫోన్ నంబర్‌ని ఐచ్ఛికంగా నమోదు చేయవచ్చు.",
+  "gotIt": "అర్థమైంది"
 }

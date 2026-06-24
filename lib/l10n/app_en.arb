@@ -179,5 +179,49 @@
   "@topUpCredits": {},
 
   "noInternetRetry": "No internet connection. Please retry.",
-  "@noInternetRetry": {}
+  "@noInternetRetry": {},
+
+  "agentEarningsScreenTitle": "My Earnings",
+  "@agentEarningsScreenTitle": {},
+
+  "totalCommissionEarned": "Total Commission Earned",
+  "@totalCommissionEarned": {},
+
+  "recentCommissions": "Recent Commissions",
+  "@recentCommissions": {},
+
+  "noEarningsYet": "No earnings yet",
+  "@noEarningsYet": {},
+
+  "noEarningsHint": "Place orders for customers to earn commission.",
+  "@noEarningsHint": {},
+
+  "orderForCustomer": "Order for {name}",
+  "@orderForCustomer": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+
+  "orderShortId": "Order #{id}",
+  "@orderShortId": {
+    "placeholders": {
+      "id": { "type": "String" }
+    }
+  },
+
+  "customerPhoneLabel": "Customer Phone (optional)",
+  "@customerPhoneLabel": {},
+
+  "customerPhoneHint": "+91 98765 43210",
+  "@customerPhoneHint": {},
+
+  "placeOrderForCustomerTitle": "Place Order for Customer",
+  "@placeOrderForCustomerTitle": {},
+
+  "agentOrderHint": "Select any template from the grid above. During order creation you can optionally enter the customer's phone number.",
+  "@agentOrderHint": {},
+
+  "gotIt": "Got it",
+  "@gotIt": {}
 }
