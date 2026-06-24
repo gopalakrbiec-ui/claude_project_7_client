@@ -37,5 +37,25 @@
   "errorGeneric": "ఏదో తప్పు జరిగింది. దయచేసి మళ్ళీ ప్రయత్నించండి.",
   "retryButton": "మళ్ళీ ప్రయత్నించు",
   "noInternetError": "ఇంటర్నెట్ కనెక్షన్ లేదు. మీ నెట్‌వర్క్ తనిఖీ చేయండి.",
-  "logoutButton": "లాగ్అవుట్"
+  "logoutButton": "లాగ్అవుట్",
+
+  "fieldRequired": "ఈ ఫీల్డ్ అవసరం",
+  "nameTooShort": "పేరు కనీసం 2 అక్షరాలు ఉండాలి",
+  "selectEventDate": "దయచేసి ఈవెంట్ తేదీ ఎంచుకోండి",
+  "nameLabel": "పేరు(లు)",
+  "nameHint": "ఉదా: ప్రియ & రవి",
+  "eventDateLabel": "ఈవెంట్ తేదీ",
+  "tapToSelectDate": "తేదీ ఎంచుకోవడానికి నొక్కండి",
+  "formatLabel": "ఫార్మాట్",
+  "formatImage": "చిత్రం",
+  "formatVideo": "వీడియో",
+  "photoLabel": "ఫోటో (ఐచ్ఛికం)",
+  "addPhotoLabel": "ఫోటో జోడించు",
+  "removePhotoLabel": "ఫోటో తొలగించు",
+  "cameraOption": "కెమెరా",
+  "galleryOption": "గ్యాలరీ",
+  "proceedToPayment": "చెల్లింపుకు వెళ్ళండి",
+  "insufficientCredits": "క్రెడిట్లు సరిపోవు. ఈ డిజైన్ సృష్టించడానికి టాప్ అప్ చేయండి.",
+  "topUpCredits": "క్రెడిట్లు టాప్ అప్ చేయండి",
+  "noInternetRetry": "ఇంటర్నెట్ కనెక్షన్ లేదు. దయచేసి మళ్ళీ ప్రయత్నించండి."
 }

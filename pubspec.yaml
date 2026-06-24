@@ -40,6 +40,11 @@ dependencies:
   # OpenAPI generator annotation (drives build_runner codegen config)
   openapi_generator_annotations: ^6.0.0
 
+  # Create-order flow
+  uuid: ^4.4.0
+  image_picker: ^1.0.7
+  flutter_image_compress: ^2.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -122,5 +122,62 @@
   "@noInternetError": {},
 
   "logoutButton": "Logout",
-  "@logoutButton": {}
+  "@logoutButton": {},
+
+  "fieldRequired": "This field is required",
+  "@fieldRequired": {},
+
+  "nameTooShort": "Name must be at least 2 characters",
+  "@nameTooShort": {},
+
+  "selectEventDate": "Please select an event date",
+  "@selectEventDate": {},
+
+  "nameLabel": "Name(s)",
+  "@nameLabel": {},
+
+  "nameHint": "e.g. Priya & Ravi",
+  "@nameHint": {},
+
+  "eventDateLabel": "Event Date",
+  "@eventDateLabel": {},
+
+  "tapToSelectDate": "Tap to select date",
+  "@tapToSelectDate": {},
+
+  "formatLabel": "Format",
+  "@formatLabel": {},
+
+  "formatImage": "Image",
+  "@formatImage": {},
+
+  "formatVideo": "Video",
+  "@formatVideo": {},
+
+  "photoLabel": "Photo (optional)",
+  "@photoLabel": {},
+
+  "addPhotoLabel": "Add Photo",
+  "@addPhotoLabel": {},
+
+  "removePhotoLabel": "Remove Photo",
+  "@removePhotoLabel": {},
+
+  "cameraOption": "Camera",
+  "@cameraOption": {},
+
+  "galleryOption": "Gallery",
+  "@galleryOption": {},
+
+  "proceedToPayment": "Proceed to Payment",
+  "@proceedToPayment": {},
+
+  "insufficientCredits": "Insufficient credits. Top up to create this design.",
+  "@insufficientCredits": {},
+
+  "topUpCredits": "Top Up Credits",
+  "@topUpCredits": {},
+
+  "noInternetRetry": "No internet connection. Please retry.",
+  "@noInternetRetry": {}
 }

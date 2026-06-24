@@ -37,5 +37,25 @@
   "errorGeneric": "कुछ गलत हुआ। कृपया पुनः प्रयास करें।",
   "retryButton": "पुनः प्रयास करें",
   "noInternetError": "इंटरनेट कनेक्शन नहीं है। कृपया अपना नेटवर्क जांचें।",
-  "logoutButton": "लॉगआउट"
+  "logoutButton": "लॉगआउट",
+
+  "fieldRequired": "यह फ़ील्ड आवश्यक है",
+  "nameTooShort": "नाम कम से कम 2 अक्षर का होना चाहिए",
+  "selectEventDate": "कृपया कार्यक्रम की तारीख चुनें",
+  "nameLabel": "नाम",
+  "nameHint": "जैसे प्रिया और रवि",
+  "eventDateLabel": "कार्यक्रम की तारीख",
+  "tapToSelectDate": "तारीख चुनने के लिए टैप करें",
+  "formatLabel": "फ़ॉर्मेट",
+  "formatImage": "छवि",
+  "formatVideo": "वीडियो",
+  "photoLabel": "फ़ोटो (वैकल्पिक)",
+  "addPhotoLabel": "फ़ोटो जोड़ें",
+  "removePhotoLabel": "फ़ोटो हटाएं",
+  "cameraOption": "कैमरा",
+  "galleryOption": "गैलरी",
+  "proceedToPayment": "भुगतान पर आगे बढ़ें",
+  "insufficientCredits": "अपर्याप्त क्रेडिट। डिज़ाइन बनाने के लिए टॉप अप करें।",
+  "topUpCredits": "क्रेडिट टॉप अप करें",
+  "noInternetRetry": "इंटरनेट कनेक्शन नहीं है। कृपया पुनः प्रयास करें।"
 }

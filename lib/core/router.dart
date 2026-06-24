@@ -107,8 +107,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: 'create-order/:templateId',
-            builder: (_, state) =>
-                CreateOrderScreen(templateId: state.pathParameters['templateId']!),
+            builder: (_, state) => CreateOrderScreen(
+              templateId: state.pathParameters['templateId']!,
+              preloaded:
+                  state.extra is Template ? state.extra as Template : null,
+            ),
           ),
           GoRoute(
             path: 'payment',

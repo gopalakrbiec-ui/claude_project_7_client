@@ -130,7 +130,7 @@ class _DetailContent extends ConsumerWidget {
                   const SizedBox(height: kSpaceLg),
 
                   ElevatedButton(
-                    onPressed: () => context.go(
+                    onPressed: () => context.push(
                       '/home/create-order/${template.id}',
                       extra: template,
                     ),
