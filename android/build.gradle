@@ -1,24 +1,10 @@
-// Root build.gradle — project-level settings shared across modules.
-// Flutter's Gradle plugin is applied per-module in android/app/build.gradle.
-
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-
-    dependencies {
-        // Android Gradle Plugin 8.3 — needed for R8 full mode and AAB support.
-        classpath "com.android.tools.build:gradle:8.3.0"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.23"
-    }
-}
+// Root build.gradle — plugins are declared in settings.gradle (modern Flutter 3.x DSL).
+// Per-module build config lives in android/app/build.gradle.
 
 allprojects {
     repositories {
         google()
         mavenCentral()
-        // Razorpay host-hosted AAR (falls back to Maven Central if hosted there)
         maven { url "https://maven.razorpay.com/nexus/content/repositories/releases" }
     }
 }
