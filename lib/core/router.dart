@@ -13,6 +13,7 @@ import '../screens/create_order/create_order_screen.dart';
 import '../screens/payment/payment_screen.dart';
 import '../screens/order_status/order_status_screen.dart';
 import '../screens/agent_earnings/agent_earnings_screen.dart';
+import '../screens/topup/topup_screen.dart';
 
 // ---------------------------------------------------------------------------
 // RouterNotifier — bridges Riverpod auth + locale state into GoRouter.
@@ -131,6 +132,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'agent-earnings',
             builder: (_, __) => const AgentEarningsScreen(),
+          ),
+          GoRoute(
+            path: 'topup',
+            builder: (_, __) => const TopupScreen(),
           ),
         ],
       ),

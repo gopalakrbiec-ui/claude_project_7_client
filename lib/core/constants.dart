@@ -31,3 +31,9 @@ const String kLocaleKey = 'selected_locale';
 // Template list in-memory cache
 // After this duration the next navigation to home triggers a background refresh.
 const Duration kTemplateCacheTtl = Duration(minutes: 5);
+
+// Credit top-up: poll GET /credits/balance after Razorpay checkout closes.
+// We do NOT trust the on-device success callback — the actual credit arrives
+// via a server-side webhook. Poll until balance rises or we time out.
+const Duration kTopupPollInterval = Duration(seconds: 3);
+const int kTopupPollMaxAttempts = 20; // 60 seconds total

@@ -171,7 +171,7 @@ class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
             // Submit / insufficient-credits CTA
             if (!canAfford && balanceAsync.hasValue)
               OutlinedButton(
-                onPressed: () => context.go('/home'),
+                onPressed: () => context.push('/home/topup'),
                 child: const Text('Top Up Credits'),
               )
             else
