@@ -21,6 +21,12 @@ jobs:
       - name: flutter pub get
         run: flutter pub get
 
+      - name: Refresh OpenAPI spec from production
+        run: |
+          mkdir -p api-contract
+          curl -fsSL https://claudeproject7-production.up.railway.app/openapi.json \
+            -o api-contract/openapi.json
+
       - name: Generate code (freezed / json_serializable / l10n)
         run: |
           flutter pub run build_runner build --delete-conflicting-outputs
