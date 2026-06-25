@@ -24,7 +24,7 @@ class DioClient {
     );
 
     dio.interceptors.addAll([
-      _JwtInterceptor(storage, dio, onUnauthorised),
+      _JwtInterceptor(storage, onUnauthorised),
       // Retries transient failures on GETs only — never on POSTs.
       // See GetRetryInterceptor for the full safety rationale.
       GetRetryInterceptor(dio),
@@ -63,10 +63,9 @@ class DioClient {
 // JWT interceptor
 // ---------------------------------------------------------------------------
 class _JwtInterceptor extends Interceptor {
-  _JwtInterceptor(this._storage, this._dio, this._onUnauthorised);
+  _JwtInterceptor(this._storage, this._onUnauthorised);
 
   final FlutterSecureStorage _storage;
-  final Dio _dio;
   final void Function() _onUnauthorised;
 
   @override

@@ -3,7 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../api/api_error.dart';
 import '../core/constants.dart';
 import '../models/user_profile.dart';
-import '../models/verify_otp_result.dart';
+
 import '../repositories/auth_repository.dart';
 
 // ---------------------------------------------------------------------------

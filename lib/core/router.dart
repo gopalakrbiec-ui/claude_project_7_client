@@ -54,7 +54,7 @@ class _RouterNotifier extends ChangeNotifier {
 
     // 4. Agent-only route guard — consumers get redirected to home
     if (isAuthenticated) {
-      final isAgent = (authState as AuthAuthenticated).profile.isAgent;
+      final isAgent = authState.profile.isAgent;
       if (!isAgent && loc == '/home/agent-earnings') return '/home';
     }
 

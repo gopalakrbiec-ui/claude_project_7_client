@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../core/constants.dart';
+
 
 /// Six single-digit boxes that auto-advance focus and support paste.
 class OtpInputField extends StatefulWidget {

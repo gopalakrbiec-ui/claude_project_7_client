@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../api/api_error.dart';
 import '../api/dio_client.dart';
 import '../controllers/auth_controller.dart';
 import '../models/payment_order.dart';
