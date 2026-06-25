@@ -35,17 +35,19 @@ ProviderContainer _makeContainer({
   final c = ProviderContainer(
     overrides: [
       ordersRepositoryProvider.overrideWithValue(repo),
-      orderPollInitialDelayProvider
-          .overrideWithValue(Duration.zero),
+      orderPollInitialDelayProvider.overrideWithValue(Duration.zero),
       orderPollMaxAttemptsProvider.overrideWithValue(maxAttempts),
+      // No-op sleep: polling loop advances without any real timer delays.
+      orderPollSleepProvider.overrideWithValue((_) async {}),
     ],
   );
   addTearDown(c.dispose);
   return c;
 }
 
-// Drains microtasks + event-loop ticks so async polling can progress.
-Future<void> _pump([int ticks = 40]) async {
+// Each tick drains one level of the microtask/event queue.
+// With no-op sleep, each poll iteration needs ~2 ticks (sleep + getOrder).
+Future<void> _pump([int ticks = 20]) async {
   for (var i = 0; i < ticks; i++) {
     await Future<void>.delayed(Duration.zero);
   }

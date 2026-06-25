@@ -12,6 +12,13 @@ final orderPollInitialDelayProvider =
 final orderPollMaxAttemptsProvider =
     Provider<int>((_) => kOrderPollMaxAttempts);
 
+/// Injectable sleep function — overridden in tests with a no-op so the
+/// polling loop runs without any real timer delays.
+final orderPollSleepProvider =
+    Provider<Future<void> Function(Duration)>(
+      (_) => (d) => Future<void>.delayed(d),
+    );
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -168,9 +175,10 @@ class OrderStatusController
 
   Future<void> _startPolling({required Duration delay}) async {
     final maxAttempts = ref.read(orderPollMaxAttemptsProvider);
+    final sleep = ref.read(orderPollSleepProvider);
 
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
-      await Future<void>.delayed(delay);
+      await sleep(delay);
       if (_cancelled) return;
 
       // Expose the current delay so the UI can say "checking again soon".
