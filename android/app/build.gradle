@@ -16,14 +16,14 @@ if (keyPropertiesFile.exists()) {
 
 android {
     namespace "in.yaadein.app"
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "in.yaadein.app"
         // API 21 = Android 5.0 (Lollipop) — covers 99 %+ of active Android
         // devices globally and is required by flutter_secure_storage.
         minSdk 21
-        targetSdk 35
+        targetSdk 36
         versionCode 1
         versionName "1.0.0"
 
