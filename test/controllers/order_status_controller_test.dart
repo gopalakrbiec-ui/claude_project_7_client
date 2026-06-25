@@ -37,17 +37,17 @@ ProviderContainer _makeContainer({
       ordersRepositoryProvider.overrideWithValue(repo),
       orderPollInitialDelayProvider.overrideWithValue(Duration.zero),
       orderPollMaxAttemptsProvider.overrideWithValue(maxAttempts),
-      // No-op sleep: polling loop advances without any real timer delays.
-      orderPollSleepProvider.overrideWithValue((_) async {}),
     ],
   );
   addTearDown(c.dispose);
   return c;
 }
 
-// Each tick drains one level of the microtask/event queue.
-// With no-op sleep, each poll iteration needs ~2 ticks (sleep + getOrder).
-Future<void> _pump([int ticks = 20]) async {
+// Force-initialize the provider (starts the polling loop) then drain
+// the event queue so Duration.zero timers fire and the loop can advance.
+// Must pass the container so the provider is initialized before pumping.
+Future<void> _pump(ProviderContainer c, [int ticks = 20]) async {
+  c.read(orderStatusControllerProvider('ord1'));
   for (var i = 0; i < ticks; i++) {
     await Future<void>.delayed(Duration.zero);
   }
@@ -89,7 +89,7 @@ void main() {
       });
 
       final c = _makeContainer(repo: repo);
-      await _pump();
+      await _pump(c);
 
       final state = c.read(orderStatusControllerProvider('ord1'));
       expect(state.phase, OrderPhase.done);
@@ -102,7 +102,7 @@ void main() {
               _order('completed', resultUrl: 'https://cdn.example.com/r.jpg'));
 
       final c = _makeContainer(repo: repo);
-      await _pump();
+      await _pump(c);
 
       expect(
         c.read(orderStatusControllerProvider('ord1')).phase,
@@ -115,7 +115,7 @@ void main() {
           .thenAnswer((_) async => _order('rejected'));
 
       final c = _makeContainer(repo: repo);
-      await _pump();
+      await _pump(c);
 
       expect(
         c.read(orderStatusControllerProvider('ord1')).phase,
@@ -135,7 +135,7 @@ void main() {
       });
 
       final c = _makeContainer(repo: repo, maxAttempts: 10);
-      await _pump(60);
+      await _pump(c, 60);
 
       expect(
         c.read(orderStatusControllerProvider('ord1')).phase,
@@ -161,7 +161,7 @@ void main() {
         }
       });
 
-      await _pump(60);
+      await _pump(c, 60);
 
       // Each recorded delay must be >= the previous (truncated exponential).
       for (var i = 1; i < delays.length; i++) {
@@ -177,7 +177,7 @@ void main() {
           .thenAnswer((_) async => _order('generating'));
 
       final c = _makeContainer(repo: repo, maxAttempts: 3);
-      await _pump(30);
+      await _pump(c, 30);
 
       expect(
         c.read(orderStatusControllerProvider('ord1')).phase,
@@ -199,7 +199,7 @@ void main() {
       });
 
       final c = _makeContainer(repo: repo, maxAttempts: 5);
-      await _pump();
+      await _pump(c);
 
       expect(
         c.read(orderStatusControllerProvider('ord1')).phase,
@@ -212,7 +212,7 @@ void main() {
           const ServerError(statusCode: 500, message: 'Backend exploded'));
 
       final c = _makeContainer(repo: repo);
-      await _pump();
+      await _pump(c);
 
       final state = c.read(orderStatusControllerProvider('ord1'));
       expect(state.phase, OrderPhase.networkError);
@@ -229,7 +229,7 @@ void main() {
           .thenAnswer((_) async => _order('generating'));
 
       final c = _makeContainer(repo: repo, maxAttempts: 2);
-      await _pump();
+      await _pump(c);
 
       expect(
         c.read(orderStatusControllerProvider('ord1')).phase,
@@ -242,7 +242,7 @@ void main() {
               _order('done', resultUrl: 'https://cdn.example.com/r.jpg'));
 
       c.read(orderStatusControllerProvider('ord1').notifier).retry();
-      await _pump();
+      await _pump(c);
 
       expect(
         c.read(orderStatusControllerProvider('ord1')).phase,
@@ -261,7 +261,7 @@ void main() {
           .thenAnswer((_) async => 'https://cdn.example.com/clean.jpg');
 
       final c = _makeContainer(repo: repo);
-      await _pump(); // reach done state
+      await _pump(c); // reach done state
 
       expect(
           c.read(orderStatusControllerProvider('ord1')).phase,
@@ -283,7 +283,7 @@ void main() {
           _order('done', resultUrl: 'https://cdn.example.com/watermarked.jpg'));
 
       final c = _makeContainer(repo: repo);
-      await _pump();
+      await _pump(c);
 
       expect(
         c.read(orderStatusControllerProvider('ord1')).displayUrl,
@@ -298,7 +298,7 @@ void main() {
           const ServerError(statusCode: 402, message: 'Insufficient credits'));
 
       final c = _makeContainer(repo: repo);
-      await _pump();
+      await _pump(c);
 
       await c
           .read(orderStatusControllerProvider('ord1').notifier)
@@ -317,7 +317,7 @@ void main() {
           const ServerError(statusCode: 500, message: 'Server error'));
 
       final c = _makeContainer(repo: repo);
-      await _pump();
+      await _pump(c);
 
       await c
           .read(orderStatusControllerProvider('ord1').notifier)
@@ -335,7 +335,7 @@ void main() {
       when(() => repo.removeWatermark(any())).thenThrow(const NetworkError());
 
       final c = _makeContainer(repo: repo);
-      await _pump();
+      await _pump(c);
 
       await c
           .read(orderStatusControllerProvider('ord1').notifier)
@@ -357,7 +357,7 @@ void main() {
       });
 
       final c = _makeContainer(repo: repo);
-      await _pump();
+      await _pump(c);
 
       // Fire twice without awaiting.
       c.read(orderStatusControllerProvider('ord1').notifier)
@@ -389,7 +389,7 @@ void main() {
           const ServerError(statusCode: 402, message: 'Insufficient credits'));
 
       final c = _makeContainer(repo: repo);
-      await _pump();
+      await _pump(c);
       await c
           .read(orderStatusControllerProvider('ord1').notifier)
           .removeWatermark();
