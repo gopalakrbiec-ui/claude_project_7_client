@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -60,8 +61,7 @@ ProviderContainer _makeContainer({
 }
 
 // Minimal stub that holds a fixed balance so TopupController can read it.
-class _FakeCreditsController
-    extends AsyncNotifier<CreditsBalance> {
+class _FakeCreditsController extends CreditsController {
   _FakeCreditsController(this._initial);
   final AsyncValue<CreditsBalance> _initial;
 

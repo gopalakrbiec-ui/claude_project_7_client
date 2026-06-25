@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/material.dart' show Locale;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -19,14 +20,9 @@ class MockOrdersRepository extends Mock implements OrdersRepository {}
 
 class MockUuid extends Mock implements Uuid {}
 
-class _FixedLocaleController extends AsyncNotifier<dynamic> {
+class _FixedLocaleController extends LocaleController {
   @override
-  Future<dynamic> build() async => const _FakeLocale('en');
-}
-
-class _FakeLocale {
-  const _FakeLocale(this.languageCode);
-  final String languageCode;
+  Future<Locale?> build() async => const Locale('en');
 }
 
 // ---------------------------------------------------------------------------

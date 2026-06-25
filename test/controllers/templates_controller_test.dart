@@ -14,7 +14,7 @@ import 'package:life_event_editor/repositories/templates_repository.dart';
 // ---------------------------------------------------------------------------
 class MockTemplatesRepository extends Mock implements TemplatesRepository {}
 
-class _FixedLocaleController extends AsyncNotifier<Locale?> {
+class _FixedLocaleController extends LocaleController {
   _FixedLocaleController(this._locale);
   final Locale? _locale;
 

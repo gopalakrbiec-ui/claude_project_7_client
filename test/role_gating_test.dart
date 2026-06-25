@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:claude_project_7_client/controllers/auth_controller.dart';
-import 'package:claude_project_7_client/models/user_profile.dart';
+import 'package:life_event_editor/controllers/auth_controller.dart';
+import 'package:life_event_editor/models/user_profile.dart';
 
 UserProfile _profile({required String role, String name = 'Test'}) {
   return UserProfile(

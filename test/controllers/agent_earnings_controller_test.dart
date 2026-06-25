@@ -2,10 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-import 'package:claude_project_7_client/controllers/agent_earnings_controller.dart';
-import 'package:claude_project_7_client/models/agent_earnings.dart';
-import 'package:claude_project_7_client/repositories/agent_repository.dart';
-import 'package:claude_project_7_client/api/api_error.dart';
+import 'package:life_event_editor/controllers/agent_earnings_controller.dart';
+import 'package:life_event_editor/models/agent_earnings.dart';
+import 'package:life_event_editor/repositories/agent_repository.dart';
+import 'package:life_event_editor/api/api_error.dart';
 
 class MockAgentRepository extends Mock implements AgentRepository {}
 
