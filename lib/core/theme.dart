@@ -89,7 +89,7 @@ ThemeData buildAppTheme() {
       ),
     ),
 
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       margin: const EdgeInsets.symmetric(horizontal: kSpaceMd, vertical: kSpaceSm),

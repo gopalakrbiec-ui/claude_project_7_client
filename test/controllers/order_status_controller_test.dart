@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -359,9 +358,8 @@ void main() {
       await _pump();
 
       // Fire twice without awaiting.
-      unawaited(c
-          .read(orderStatusControllerProvider('ord1').notifier)
-          .removeWatermark());
+      c.read(orderStatusControllerProvider('ord1').notifier)
+          .removeWatermark().ignore();
       await Future<void>.delayed(Duration.zero);
 
       expect(

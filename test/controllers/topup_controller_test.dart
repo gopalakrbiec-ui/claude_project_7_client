@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -164,8 +163,7 @@ void main() {
           paymentsRepo: paymentsRepo, creditsRepo: creditsRepo);
 
       // Fire but don't await — leaves controller in creatingOrder.
-      unawaited(
-          c.read(topupControllerProvider.notifier).initTopup(10000));
+      c.read(topupControllerProvider.notifier).initTopup(10000).ignore();
 
       await Future<void>.delayed(Duration.zero);
       expect(c.read(topupControllerProvider).status,

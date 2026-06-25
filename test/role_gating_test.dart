@@ -22,12 +22,12 @@ ProviderContainer _containerWithAuth(AuthState state) {
   );
 }
 
-class _StaticAuthController extends Notifier<AuthState> {
-  _StaticAuthController(this._state);
-  final AuthState _state;
+class _StaticAuthController extends AuthController {
+  _StaticAuthController(this._fixedState);
+  final AuthState _fixedState;
 
   @override
-  AuthState build() => _state;
+  AuthState build() => _fixedState;
 }
 
 void main() {
@@ -77,15 +77,13 @@ void main() {
       expect(container.read(isAgentProvider), isFalse);
 
       // Simulate role change to agent (e.g. after /auth/me refresh)
-      container
-          .read(authControllerProvider.notifier)
+      (container.read(authControllerProvider.notifier) as _MutableAuthController)
           .setProfile(_profile(role: 'agent'));
 
       expect(container.read(isAgentProvider), isTrue);
 
       // Back to consumer
-      container
-          .read(authControllerProvider.notifier)
+      (container.read(authControllerProvider.notifier) as _MutableAuthController)
           .setProfile(_profile(role: 'consumer'));
 
       expect(container.read(isAgentProvider), isFalse);
@@ -111,7 +109,7 @@ void main() {
 // ---------------------------------------------------------------------------
 // Mutable test controller that supports mid-test state changes.
 // ---------------------------------------------------------------------------
-class _MutableAuthController extends Notifier<AuthState> {
+class _MutableAuthController extends AuthController {
   @override
   AuthState build() => AuthAuthenticated(profile: _profile(role: 'consumer'));
 

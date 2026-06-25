@@ -90,9 +90,7 @@ void main() {
     test('refresh() reloads earnings', () async {
       final first = _fakeEarnings(total: 1000);
       final second = _fakeEarnings(total: 3000, entries: [_fakeEntry()]);
-      when(() => mockRepo.getEarnings())
-          .thenAnswer((_) async => first)
-          .thenAnswer((_) async => second);
+      when(() => mockRepo.getEarnings()).thenAnswer((_) async => first);
 
       final container = makeContainer();
       addTearDown(container.dispose);

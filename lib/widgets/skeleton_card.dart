@@ -15,7 +15,7 @@ class SkeletonCard extends StatelessWidget {
       builder: (context, _) {
         final shade = Color.lerp(
           Colors.grey.shade200,
-          Colors.grey.shade350,
+          Colors.grey.shade400,
           animation.value,
         )!;
         return Card(
