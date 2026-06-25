@@ -9,7 +9,7 @@ import 'package:openapi_generator_annotations/openapi_generator_annotations.dart
     pubName: 'life_event_editor_api',
     pubAuthor: 'generated',
   ),
-  inputSpec: InputSpec.fromFile('openapi.json'),
+  inputSpec: InputSpec(path: 'openapi.json'),
   generatorName: Generator.dio,
   outputDirectory: 'lib/api/generated',
   runSourceGenOnOutput: true,
