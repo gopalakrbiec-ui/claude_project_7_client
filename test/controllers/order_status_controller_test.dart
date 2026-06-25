@@ -36,7 +36,7 @@ ProviderContainer _makeContainer({
     overrides: [
       ordersRepositoryProvider.overrideWithValue(repo),
       orderPollInitialDelayProvider
-          .overrideWithValue(const Duration(milliseconds: 1)),
+          .overrideWithValue(Duration.zero),
       orderPollMaxAttemptsProvider.overrideWithValue(maxAttempts),
     ],
   );
@@ -44,10 +44,10 @@ ProviderContainer _makeContainer({
   return c;
 }
 
-// Drains microtasks + a few event-loop ticks so async polling can progress.
-Future<void> _pump([int ticks = 30]) async {
+// Drains microtasks + event-loop ticks so async polling can progress.
+Future<void> _pump([int ticks = 40]) async {
   for (var i = 0; i < ticks; i++) {
-    await Future<void>.delayed(const Duration(milliseconds: 2));
+    await Future<void>.delayed(Duration.zero);
   }
 }
 

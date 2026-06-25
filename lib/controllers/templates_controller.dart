@@ -26,9 +26,13 @@ class TemplatesController extends AsyncNotifier<List<Template>> {
     // Watching localeControllerProvider means build() is automatically
     // re-called whenever the user switches language — picks up the new
     // language for the API call while keeping _selectedTheme intact.
-    final locale =
-        ref.watch(localeControllerProvider).valueOrNull;
-    final language = locale?.languageCode ?? 'en';
+    final localeAsync = ref.watch(localeControllerProvider);
+
+    // Don't call the API while locale is still loading — build() will
+    // re-fire once it resolves, making a single well-formed request.
+    if (localeAsync.isLoading) return [];
+
+    final language = localeAsync.valueOrNull?.languageCode ?? 'en';
 
     return ref.read(templatesRepositoryProvider).getTemplates(
           language: language,
