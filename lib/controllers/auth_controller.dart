@@ -91,18 +91,20 @@ class AuthController extends Notifier<AuthState> {
       if (e.isUnauthorised) {
         await _clearCredentials(storage);
         state = const AuthUnauthenticated();
-      } else {
-        // Non-401 error on startup — keep user logged in, show stale data.
-        // The stored role is a fallback until the next successful /auth/me.
-        final storedRole = await storage.read(key: kRoleKey) ?? 'user';
-        state = AuthAuthenticated(
-          profile: UserProfile(
-            id: '',
-            phone: '',
-            role: storedRole,
-          ),
-        );
+        return;
       }
+      // Non-401 server error — fall through to stale-data path below.
+      final storedRole = await storage.read(key: kRoleKey) ?? 'user';
+      state = AuthAuthenticated(
+        profile: UserProfile(id: '', phone: '', role: storedRole),
+      );
+    } on NetworkError {
+      // Network error on startup — keep user logged in with stale role.
+      // The stored role is a fallback until the next successful /auth/me.
+      final storedRole = await storage.read(key: kRoleKey) ?? 'user';
+      state = AuthAuthenticated(
+        profile: UserProfile(id: '', phone: '', role: storedRole),
+      );
     } catch (_) {
       await _clearCredentials(storage);
       state = const AuthUnauthenticated();
