@@ -24,8 +24,8 @@ android {
         // devices globally and is required by flutter_secure_storage.
         minSdk 21
         targetSdk 35
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
+        versionCode 1
+        versionName "1.0.0"
 
         // Multiline ndk split — only package architectures Play Store will
         // actually serve.  Omit x86 / x86_64 from production; emulators can
