@@ -33,16 +33,23 @@ class Template {
   /// First asset key used as thumbnail. Returns null if list is empty.
   String? get thumbnailKey => assetKeys.isEmpty ? null : assetKeys.first;
 
-  factory Template.fromJson(Map<String, dynamic> json) => Template(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        language: json['language'] as String,
-        theme: json['theme'] as String,
-        basePricePaise: json['base_price_paise'] as int,
-        assetKeys: (json['asset_keys'] as List<dynamic>)
-            .map((e) => e as String)
-            .toList(),
-      );
+  factory Template.fromJson(Map<String, dynamic> json) {
+    // asset_keys may be an empty map {} (backend quirk) or a proper list [].
+    final rawKeys = json['asset_keys'];
+    final assetKeys = rawKeys is List
+        ? rawKeys.map((e) => e.toString()).toList()
+        : <String>[];
+
+    return Template(
+      // id may come as int or string depending on backend serialiser.
+      id: json['id'].toString(),
+      name: json['name'] as String,
+      language: json['language'] as String,
+      theme: json['theme'] as String,
+      basePricePaise: json['base_price_paise'] as int,
+      assetKeys: assetKeys,
+    );
+  }
 
   @override
   bool operator ==(Object other) =>
