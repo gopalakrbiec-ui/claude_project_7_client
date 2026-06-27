@@ -49,9 +49,17 @@ class DioClient {
     final response = e.response;
     if (response != null) {
       final body = response.data;
-      final message = (body is Map && body['detail'] != null)
-          ? body['detail'].toString()
-          : 'Request failed';
+      String message = 'Request failed (${response.statusCode})';
+      if (body is Map && body['detail'] != null) {
+        final detail = body['detail'];
+        if (detail is List && detail.isNotEmpty) {
+          // FastAPI validation error: list of {loc, msg, type}
+          final first = detail.first;
+          message = first is Map ? (first['msg']?.toString() ?? detail.toString()) : detail.toString();
+        } else {
+          message = detail.toString();
+        }
+      }
       return ServerError(statusCode: response.statusCode ?? 0, message: message);
     }
 

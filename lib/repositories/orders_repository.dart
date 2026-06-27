@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -48,14 +49,20 @@ class OrdersRepository {
     try {
       FormData? formData;
       if (params.photoFile != null) {
+        final inputPayload = <String, dynamic>{
+          'name': params.name,
+          'event_date': params.eventDate,
+          'theme': params.theme,
+          'language': params.language,
+          'media_type': params.mediaType,
+          if (params.customerPhone != null &&
+              params.customerPhone!.isNotEmpty)
+            'customer_phone': params.customerPhone,
+        };
         formData = FormData.fromMap({
           'template_id': params.templateId,
           'idempotency_key': params.idempotencyKey,
-          'input_payload[name]': params.name,
-          'input_payload[event_date]': params.eventDate,
-          'input_payload[theme]': params.theme,
-          'input_payload[language]': params.language,
-          'input_payload[media_type]': params.mediaType,
+          'input_payload': jsonEncode(inputPayload),
           'photo': await MultipartFile.fromFile(
             params.photoFile!.path,
             filename: 'photo.jpg',
