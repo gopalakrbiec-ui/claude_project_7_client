@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gal/gal.dart';
@@ -69,7 +70,7 @@ class _OrderStatusScreenState extends ConsumerState<OrderStatusScreen> {
   Widget _buildBody(BuildContext context, OrderStatusState state) {
     switch (state.phase) {
       case OrderPhase.polling:
-        return _ShiningPollingBody(order: state.order, key: const ValueKey('polling'));
+        return _ShiningPollingBody(state: state, key: const ValueKey('polling'));
 
       case OrderPhase.done:
         return _DoneBody(
@@ -211,8 +212,8 @@ const _kMessages = [
 ];
 
 class _ShiningPollingBody extends StatefulWidget {
-  const _ShiningPollingBody({super.key, this.order});
-  final Order? order;
+  const _ShiningPollingBody({super.key, required this.state});
+  final OrderStatusState state;
 
   @override
   State<_ShiningPollingBody> createState() => _ShiningPollingBodyState();
@@ -259,103 +260,168 @@ class _ShiningPollingBodyState extends State<_ShiningPollingBody>
 
   @override
   Widget build(BuildContext context) {
-    final statusLabel = switch (widget.order?.status) {
+    final order = widget.state.order;
+    final statusLabel = switch (order?.status) {
       'queued'     => 'In queue…',
       'moderating' => 'Reviewing content…',
       'generating' => 'Generating…',
       _            => 'Processing…',
     };
 
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_kSaffron, _kMagenta],
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            const Spacer(flex: 3),
-
-            // Central animated piece
-            RepaintBoundary(
-              child: AnimatedBuilder(
-                animation: Listenable.merge([_spinCtrl, _pulseCtrl]),
-                builder: (_, __) => CustomPaint(
-                  size: const Size(260, 260),
-                  painter: _ShiningPainter(
-                    spin: _spinCtrl.value,
-                    pulse: _pulseCtrl.value,
-                  ),
-                ),
-              ),
+    return Stack(
+      children: [
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_kSaffron, _kMagenta],
             ),
+          ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                const Spacer(flex: 3),
 
-            const Spacer(flex: 2),
-
-            // Fading message
-            AnimatedBuilder(
-              animation: _msgCtrl,
-              builder: (_, __) {
-                final t = _msgCtrl.value;
-                final opacity = (t < 0.15
-                    ? t / 0.15
-                    : t > 0.85
-                        ? (1.0 - t) / 0.15
-                        : 1.0)
-                    .clamp(0.0, 1.0);
-                return Opacity(
-                  opacity: opacity,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Text(
-                      _kMessages[_msgIdx],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.2,
+                // Central animated piece
+                RepaintBoundary(
+                  child: AnimatedBuilder(
+                    animation: Listenable.merge([_spinCtrl, _pulseCtrl]),
+                    builder: (_, __) => CustomPaint(
+                      size: const Size(260, 260),
+                      painter: _ShiningPainter(
+                        spin: _spinCtrl.value,
+                        pulse: _pulseCtrl.value,
                       ),
-                      textAlign: TextAlign.center,
                     ),
                   ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 12),
-
-            Text(
-              statusLabel,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.65),
-                fontSize: 13,
-              ),
-            ),
-
-            const Spacer(flex: 1),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 8),
-              child: Text(
-                'You can leave this screen — we\'ll keep working.',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
-                  fontSize: 12,
                 ),
-                textAlign: TextAlign.center,
-              ),
-            ),
 
-            const Spacer(flex: 2),
-          ],
+                const Spacer(flex: 2),
+
+                // Fading message
+                AnimatedBuilder(
+                  animation: _msgCtrl,
+                  builder: (_, __) {
+                    final t = _msgCtrl.value;
+                    final opacity = (t < 0.15
+                        ? t / 0.15
+                        : t > 0.85
+                            ? (1.0 - t) / 0.15
+                            : 1.0)
+                        .clamp(0.0, 1.0);
+                    return Opacity(
+                      opacity: opacity,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          _kMessages[_msgIdx],
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.2,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 12),
+
+                Text(
+                  statusLabel,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.65),
+                    fontSize: 13,
+                  ),
+                ),
+
+                const Spacer(flex: 1),
+
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 8),
+                  child: Text(
+                    'You can leave this screen — we\'ll keep working.',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.5),
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+
+                const Spacer(flex: 2),
+              ],
+            ),
+          ),
         ),
+
+        // DEBUG overlay — only shown in debug builds
+        if (kDebugMode)
+          Positioned(
+            bottom: 90,
+            left: 12,
+            right: 12,
+            child: _DebugInfoPanel(state: widget.state),
+          ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Debug overlay (debug builds only)
+// ---------------------------------------------------------------------------
+
+class _DebugInfoPanel extends StatelessWidget {
+  const _DebugInfoPanel({required this.state});
+  final OrderStatusState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final lines = <String>[
+      'attempt: ${state.attemptCount}',
+      'status: ${state.order?.status ?? '—'}',
+      'orderId: ${state.order?.id ?? '—'}',
+      if (state.currentDelay != null)
+        'next poll in: ${state.currentDelay!.inSeconds}s',
+      if (state.lastPollError != null)
+        'last error: ${state.lastPollError}',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.72),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            '🐛 DEBUG — Order Status',
+            style: TextStyle(color: Colors.yellowAccent, fontSize: 11, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          ...lines.map((l) => Text(
+            l,
+            style: TextStyle(
+              color: l.contains('error') ? Colors.redAccent : Colors.white70,
+              fontSize: 11,
+              fontFamily: 'monospace',
+            ),
+          )),
+        ],
       ),
     );
   }
 }
+
+// ---------------------------------------------------------------------------
 
 class _ShiningPainter extends CustomPainter {
   const _ShiningPainter({required this.spin, required this.pulse});

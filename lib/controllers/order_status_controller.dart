@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_error.dart';
 import '../core/constants.dart';
@@ -33,6 +35,7 @@ class OrderStatusState {
     this.errorMessage,
     this.attemptCount = 0,
     this.currentDelay,
+    this.lastPollError,
   });
 
   final OrderPhase phase;
@@ -53,6 +56,9 @@ class OrderStatusState {
   /// The delay currently in use (displayed to the user if desired).
   final Duration? currentDelay;
 
+  /// Last network/server error during polling — surfaced in debug builds.
+  final String? lastPollError;
+
   bool get isTerminal =>
       phase == OrderPhase.done ||
       phase == OrderPhase.rejected ||
@@ -71,6 +77,8 @@ class OrderStatusState {
     bool clearError = false,
     int? attemptCount,
     Duration? currentDelay,
+    String? lastPollError,
+    bool clearLastPollError = false,
   }) =>
       OrderStatusState(
         phase: phase ?? this.phase,
@@ -80,6 +88,7 @@ class OrderStatusState {
         errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
         attemptCount: attemptCount ?? this.attemptCount,
         currentDelay: currentDelay ?? this.currentDelay,
+        lastPollError: clearLastPollError ? null : (lastPollError ?? this.lastPollError),
       );
 }
 
@@ -168,10 +177,13 @@ class OrderStatusController
 
   Future<void> _startPolling({required Duration delay}) async {
     final maxAttempts = ref.read(orderPollMaxAttemptsProvider);
+    dev.log('[OrderStatus] polling start — orderId=$_orderId maxAttempts=$maxAttempts', name: 'order');
 
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       await Future<void>.delayed(delay);
       if (_cancelled) return;
+
+      dev.log('[OrderStatus] attempt ${attempt + 1}/$maxAttempts — delay=${delay.inSeconds}s', name: 'order');
 
       // Expose the current delay so the UI can say "checking again soon".
       state = state.copyWith(
@@ -184,38 +196,43 @@ class OrderStatusController
             await ref.read(ordersRepositoryProvider).getOrder(_orderId);
         if (_cancelled) return;
 
+        dev.log('[OrderStatus] GET /orders/$_orderId → status=${order.status}', name: 'order');
+
         if (order.isDone) {
-          state = state.copyWith(phase: OrderPhase.done, order: order);
+          dev.log('[OrderStatus] done — resultUrl=${order.resultUrl}', name: 'order');
+          state = state.copyWith(phase: OrderPhase.done, order: order, clearLastPollError: true);
           return;
         }
 
         if (order.isRejected) {
+          dev.log('[OrderStatus] rejected', name: 'order');
           state = state.copyWith(phase: OrderPhase.rejected, order: order);
           return;
         }
 
         // Still in progress — update the displayed order and back off.
-        state = state.copyWith(order: order);
+        state = state.copyWith(order: order, clearLastPollError: true);
         delay = _backoff(delay);
-      } on NetworkError {
-        // Transient network failure: keep trying from a fresh short delay.
-        // Do NOT count this as a wasted attempt toward maxAttempts — it
-        // wasn't the server's response, just a connectivity blip.
-        //
-        // However we do still advance the loop counter so the poll
-        // terminates eventually.  Reset delay to initial so recovery is
-        // fast once the connection comes back.
+      } on NetworkError catch (e) {
+        dev.log('[OrderStatus] NetworkError on attempt ${attempt + 1}: $e', name: 'order');
+        state = state.copyWith(lastPollError: 'NetworkError: $e');
         delay = ref.read(orderPollInitialDelayProvider);
       } on ServerError catch (e) {
+        dev.log('[OrderStatus] ServerError on attempt ${attempt + 1}: ${e.statusCode} ${e.message}', name: 'order');
         if (_cancelled) return;
         state = state.copyWith(
             phase: OrderPhase.networkError,
-            errorMessage: e.message);
+            errorMessage: e.message,
+            lastPollError: 'ServerError ${e.statusCode}: ${e.message}');
         return;
+      } catch (e, st) {
+        dev.log('[OrderStatus] unexpected error on attempt ${attempt + 1}: $e\n$st', name: 'order', error: e);
+        state = state.copyWith(lastPollError: 'Error: $e');
       }
     }
 
     if (!_cancelled) {
+      dev.log('[OrderStatus] timeout after $maxAttempts attempts', name: 'order');
       state = state.copyWith(phase: OrderPhase.timeout);
     }
   }
