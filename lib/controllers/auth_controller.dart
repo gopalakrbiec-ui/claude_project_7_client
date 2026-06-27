@@ -106,13 +106,29 @@ class AuthController extends Notifier<AuthState> {
         profile: UserProfile(id: '', phone: '', role: storedRole),
       );
     } catch (_) {
-      await _clearCredentials(storage);
-      state = const AuthUnauthenticated();
+      // Unknown error — keep user logged in with stale role rather than
+      // forcing logout. Only a confirmed 401 should clear credentials.
+      final storedRole = await storage.read(key: kRoleKey) ?? 'user';
+      state = AuthAuthenticated(
+        profile: UserProfile(id: '', phone: '', role: storedRole),
+      );
     }
   }
 
+  DateTime? _lastRefresh;
+
   /// Re-runs initialisation — call from AppLifecycleListener on resume.
-  Future<void> refresh() => _init();
+  /// Debounced to 10 s so opening the image picker (which briefly backgrounds
+  /// the app) doesn't trigger a redundant /auth/me call.
+  Future<void> refresh() {
+    final now = DateTime.now();
+    if (_lastRefresh != null &&
+        now.difference(_lastRefresh!) < const Duration(seconds: 10)) {
+      return Future.value();
+    }
+    _lastRefresh = now;
+    return _init();
+  }
 
   // ── OTP flow ─────────────────────────────────────────────────────────────
 
