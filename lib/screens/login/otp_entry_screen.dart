@@ -36,6 +36,10 @@ class _OtpEntryScreenState extends ConsumerState<OtpEntryScreen> {
     if (kDebugMode) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _otpKey.currentState?.prefill('000000');
+        // Auto-submit after a short delay so the tester can see the pre-fill.
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (mounted) _onOtpCompleted('000000');
+        });
       });
     }
   }
