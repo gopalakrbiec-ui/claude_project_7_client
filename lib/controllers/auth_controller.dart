@@ -11,7 +11,17 @@ import '../repositories/auth_repository.dart';
 // Shared secure-storage instance — override in tests via ProviderContainer.
 // ---------------------------------------------------------------------------
 final secureStorageProvider = Provider<FlutterSecureStorage>(
-  (_) => const FlutterSecureStorage(),
+  // AndroidOptions(encryptedSharedPreferences: true) uses Jetpack
+  // EncryptedSharedPreferences instead of the hardware Keystore path.
+  // The hardware Keystore can deadlock the platform channel when the device
+  // reboots or the screen is locked, causing an infinite spinner that
+  // no Future.timeout() can rescue (the Dart event loop itself stalls).
+  // EncryptedSharedPreferences avoids that lock entirely.
+  // NOTE: existing tokens stored under the old options are unreadable here,
+  // so users will be signed out once on the first update — acceptable.
+  (_) => const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  ),
 );
 
 // ---------------------------------------------------------------------------
