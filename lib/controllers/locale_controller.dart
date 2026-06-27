@@ -30,7 +30,10 @@ class LocaleController extends AsyncNotifier<Locale?> {
   Future<Locale?> build() async {
     final prefs = await SharedPreferences.getInstance();
     final code = prefs.getString(kLocaleKey);
-    return code != null ? Locale(code) : null;
+    if (code != null) return Locale(code);
+    // Default to English on first launch — no language picker shown.
+    await prefs.setString(kLocaleKey, 'en');
+    return const Locale('en');
   }
 
   Future<void> setLocale(Locale locale) async {

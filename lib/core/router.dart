@@ -30,27 +30,20 @@ class _RouterNotifier extends ChangeNotifier {
     final localeAsync = _ref.read(localeControllerProvider);
     final authState = _ref.read(authControllerProvider);
 
-    // While locale or auth are still loading, don't redirect — show a splash.
-    if (localeAsync.isLoading) return null;
+    // While auth is still loading, show splash.
     if (authState is AuthInitializing) return '/splash';
 
-    final localeIsSet = localeAsync.valueOrNull != null;
     final isAuthenticated = authState is AuthAuthenticated;
     final loc = state.matchedLocation;
 
-    // 1. No locale → language picker
-    if (!localeIsSet && loc != '/language-select') return '/language-select';
-
-    // 2. Locale set, not authenticated → login (allow /login/* sub-routes)
+    // 1. Not authenticated → login (allow /login/* sub-routes and language-select)
     final onLoginFlow = loc == '/login' || loc.startsWith('/login/');
-    if (localeIsSet && !isAuthenticated && !onLoginFlow && loc != '/language-select') {
+    if (!isAuthenticated && !onLoginFlow && loc != '/language-select') {
       return '/login';
     }
 
-    // 3. Authenticated user hits login / language-select → home
-    if (isAuthenticated && (onLoginFlow || loc == '/language-select')) {
-      return '/home';
-    }
+    // 2. Authenticated user hits login → home
+    if (isAuthenticated && onLoginFlow) return '/home';
 
     // 4. Agent-only route guard — consumers get redirected to home
     if (isAuthenticated) {
@@ -69,7 +62,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final notifier = _RouterNotifier(ref);
 
   return GoRouter(
-    initialLocation: '/language-select',
+    initialLocation: '/login',
     refreshListenable: notifier,
     redirect: notifier.redirect,
     routes: [

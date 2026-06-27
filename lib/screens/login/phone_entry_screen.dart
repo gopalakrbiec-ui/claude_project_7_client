@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../api/api_error.dart';
@@ -12,14 +14,12 @@ import '../../core/constants.dart';
 /// Returns +91XXXXXXXXXX if valid Indian mobile, null otherwise.
 String? normaliseIndianPhone(String raw) {
   final digits = raw.replaceAll(RegExp(r'\D'), '');
-  // Strip country code prefix if already included.
   final local = switch (digits.length) {
     12 when digits.startsWith('91') => digits.substring(2),
     10 => digits,
     _ => null,
   };
   if (local == null) return null;
-  // Indian mobile must start with 6–9.
   if (!RegExp(r'^[6-9]\d{9}$').hasMatch(local)) return null;
   return '+91$local';
 }
@@ -35,36 +35,39 @@ class PhoneEntryScreen extends ConsumerStatefulWidget {
 }
 
 class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen> {
-  final List<String> _digits = [];
+  late final TextEditingController _controller;
+  final _focusNode = FocusNode();
   bool _isLoading = false;
   String? _errorMessage;
 
-  String get _display {
-    final d = _digits.join();
-    if (d.isEmpty) return '';
-    if (d.length <= 5) return d;
-    return '${d.substring(0, 5)} ${d.substring(5)}';
+  String? get _normalisedPhone => normaliseIndianPhone(_controller.text);
+  bool get _canSend => _normalisedPhone != null && !_isLoading;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: kDebugMode ? '8618991478' : '',
+    );
+    _controller.addListener(() => setState(() => _errorMessage = null));
+    // Open keyboard automatically (except in debug where number is pre-filled).
+    if (!kDebugMode) {
+      WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _focusNode.requestFocus());
+    }
   }
 
-  String? get _normalisedPhone =>
-      _digits.length == 10 ? normaliseIndianPhone(_digits.join()) : null;
-
-  void _onDigit(String d) {
-    if (_digits.length >= 10) return;
-    setState(() {
-      _digits.add(d);
-      _errorMessage = null;
-    });
-  }
-
-  void _onBackspace() {
-    if (_digits.isEmpty) return;
-    setState(() => _digits.removeLast());
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
   }
 
   Future<void> _onSend() async {
     final phone = _normalisedPhone;
     if (phone == null) return;
+    _focusNode.unfocus();
 
     setState(() {
       _isLoading = true;
@@ -89,238 +92,195 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final canSend = _normalisedPhone != null && !_isLoading;
+    final size = MediaQuery.sizeOf(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Login'),
-        automaticallyImplyLeading: false,
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ── Display ──────────────────────────────────────────────────
-            Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: kSpaceLg),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Enter your mobile number',
-                        style: theme.textTheme.titleLarge,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: kSpaceSm),
-                      Text(
-                        "We'll send a one-time password to verify",
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: kSpaceXl),
-
-                      // Phone display box
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: kSpaceLg,
-                          vertical: kSpaceMd,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: _errorMessage != null
-                                ? theme.colorScheme.error
-                                : _digits.length == 10
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.outlineVariant,
-                            width: 2,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Text(
-                              '+91 ',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                _display.isEmpty ? '     ' : _display,
-                                style: theme.textTheme.titleLarge?.copyWith(
-                                  letterSpacing: 2,
-                                  fontWeight: FontWeight.w700,
-                                  color: _display.isEmpty
-                                      ? theme.colorScheme.outlineVariant
-                                      : theme.colorScheme.onSurface,
-                                ),
-                              ),
-                            ),
-                            // Digit count indicator
-                            Text(
-                              '${_digits.length}/10',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: kSpaceSm),
-                        Text(
-                          _errorMessage!,
-                          style: TextStyle(
-                            color: theme.colorScheme.error,
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+      resizeToAvoidBottomInset: true,
+      body: Column(
+        children: [
+          // ── Gradient hero ──────────────────────────────────────────────────
+          Container(
+            width: double.infinity,
+            height: size.height * 0.36,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFFF6B23), Color(0xFFC21860)],
+              ),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(36),
+                bottomRight: Radius.circular(36),
               ),
             ),
-
-            // ── Numeric keypad ────────────────────────────────────────────
-            Container(
-              color: theme.colorScheme.surfaceContainerLow,
-              padding: const EdgeInsets.fromLTRB(
-                  kSpaceMd, kSpaceSm, kSpaceMd, kSpaceLg),
+            child: SafeArea(
+              bottom: false,
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  for (final row in [
-                    ['1', '2', '3'],
-                    ['4', '5', '6'],
-                    ['7', '8', '9'],
-                  ])
-                    _KeypadRow(
-                        keys: row.map((d) => _DigitKey(d, onTap: _onDigit)).toList()),
-                  _KeypadRow(keys: [
-                    const _EmptyKey(),
-                    _DigitKey('0', onTap: _onDigit),
-                    if (_isLoading)
-                      const _ActionKey(
-                        child: SizedBox(
-                          width: 28,
-                          height: 28,
-                          child: CircularProgressIndicator(strokeWidth: 3),
-                        ),
-                      )
-                    else if (canSend)
-                      _ActionKey(
-                        onTap: _onSend,
-                        child: Icon(
-                          Icons.arrow_forward_rounded,
-                          color: theme.colorScheme.onPrimary,
-                          size: 28,
-                        ),
-                        filled: true,
-                      )
-                    else
-                      _ActionKey(
-                        onTap: _digits.isNotEmpty ? _onBackspace : null,
-                        child: const Icon(Icons.backspace_outlined, size: 26),
-                      ),
-                  ]),
+                  // App icon-style camera+heart badge
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.auto_awesome,
+                      color: Colors.white,
+                      size: 40,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Yaadein',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Memories made beautiful',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.85),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Keypad building blocks
-// ---------------------------------------------------------------------------
-
-class _KeypadRow extends StatelessWidget {
-  const _KeypadRow({required this.keys});
-  final List<Widget> keys;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: keys.map((k) => Expanded(child: k)).toList(),
-    );
-  }
-}
-
-class _DigitKey extends StatelessWidget {
-  const _DigitKey(this.digit, {required this.onTap});
-  final String digit;
-  final void Function(String) onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return _KeyBase(
-      onTap: () => onTap(digit),
-      child: Text(
-        digit,
-        style: theme.textTheme.titleLarge?.copyWith(
-          fontSize: 28,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionKey extends StatelessWidget {
-  const _ActionKey({this.onTap, required this.child, this.filled = false});
-  final VoidCallback? onTap;
-  final Widget child;
-  final bool filled;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return _KeyBase(
-      onTap: onTap,
-      fillColor: filled ? theme.colorScheme.primary : null,
-      child: child,
-    );
-  }
-}
-
-class _EmptyKey extends StatelessWidget {
-  const _EmptyKey();
-
-  @override
-  Widget build(BuildContext context) => const SizedBox(height: kMinTapTarget + 12);
-}
-
-class _KeyBase extends StatelessWidget {
-  const _KeyBase({this.onTap, required this.child, this.fillColor});
-  final VoidCallback? onTap;
-  final Widget child;
-  final Color? fillColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(4),
-      child: Material(
-        color: fillColor ?? Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: SizedBox(
-            height: kMinTapTarget + 12,
-            child: Center(child: child),
           ),
-        ),
+
+          // ── Form area ──────────────────────────────────────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(28, 36, 28, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Enter your mobile number',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    "We'll send a one-time password to verify",
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Phone field
+                  TextField(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ],
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 3,
+                      fontSize: 26,
+                    ),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _canSend ? _onSend() : null,
+                    decoration: InputDecoration(
+                      prefixText: '+91  ',
+                      prefixStyle: theme.textTheme.titleLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 20,
+                      ),
+                      hintText: '00000 00000',
+                      hintStyle: TextStyle(
+                        color: theme.colorScheme.outlineVariant,
+                        letterSpacing: 3,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      filled: true,
+                      fillColor: theme.colorScheme.surfaceContainerHighest,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 18),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                            color: theme.colorScheme.outlineVariant, width: 1.5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(
+                            color: Color(0xFFFF6B23), width: 2.5),
+                      ),
+                      errorText: _errorMessage,
+                      errorMaxLines: 3,
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // Send OTP button
+                  SizedBox(
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _canSend ? _onSend : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF6B23),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor:
+                            theme.colorScheme.outlineVariant.withOpacity(0.3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Send OTP',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+                  Text(
+                    'By continuing you agree to our Terms of Service.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
