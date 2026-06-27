@@ -47,13 +47,15 @@ class Order {
   bool get isPending => isInProgress;
 
   factory Order.fromJson(Map<String, dynamic> json) => Order(
-        // id and template_id may come as int or string depending on serialiser.
         id: json['id'].toString(),
-        status: json['status'] as String,
+        status: (json['status'] as String?) ?? 'queued',
         templateId: json['template_id'].toString(),
-        pricePaise: (json['price_paise'] as num).toInt(),
-        priceDisplay: json['price_display'] as String,
+        pricePaise: (json['price_paise'] as num?)?.toInt() ?? 0,
+        // price_display may be absent on freshly created orders.
+        priceDisplay: (json['price_display'] as String?) ?? '',
         resultUrl: json['result_url'] as String?,
-        createdAt: DateTime.parse(json['created_at'] as String),
+        createdAt: json['created_at'] != null
+            ? DateTime.parse(json['created_at'] as String)
+            : DateTime.now(),
       );
 }
