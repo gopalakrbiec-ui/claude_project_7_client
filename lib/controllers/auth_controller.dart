@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../api/api_error.dart';
@@ -73,6 +74,18 @@ class AuthController extends Notifier<AuthState> {
   // ── Initialisation (every app launch / resume) ──────────────────────────
 
   Future<void> _init() async {
+    try {
+      await _doInit().timeout(const Duration(seconds: 12));
+    } on TimeoutException {
+      // flutter_secure_storage can hang on Android Keystore lock after restart.
+      // Fall through to login rather than spinning forever.
+      state = const AuthUnauthenticated();
+    } catch (_) {
+      state = const AuthUnauthenticated();
+    }
+  }
+
+  Future<void> _doInit() async {
     final storage = ref.read(secureStorageProvider);
     final token = await storage.read(key: kTokenKey);
 
@@ -93,21 +106,16 @@ class AuthController extends Notifier<AuthState> {
         state = const AuthUnauthenticated();
         return;
       }
-      // Non-401 server error — fall through to stale-data path below.
       final storedRole = await storage.read(key: kRoleKey) ?? 'user';
       state = AuthAuthenticated(
         profile: UserProfile(id: '', phone: '', role: storedRole),
       );
     } on NetworkError {
-      // Network error on startup — keep user logged in with stale role.
-      // The stored role is a fallback until the next successful /auth/me.
       final storedRole = await storage.read(key: kRoleKey) ?? 'user';
       state = AuthAuthenticated(
         profile: UserProfile(id: '', phone: '', role: storedRole),
       );
     } catch (_) {
-      // Unknown error — keep user logged in with stale role rather than
-      // forcing logout. Only a confirmed 401 should clear credentials.
       final storedRole = await storage.read(key: kRoleKey) ?? 'user';
       state = AuthAuthenticated(
         profile: UserProfile(id: '', phone: '', role: storedRole),
