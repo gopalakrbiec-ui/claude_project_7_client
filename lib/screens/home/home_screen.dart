@@ -216,7 +216,7 @@ class _ErrorBody extends StatelessWidget {
     if (raw.contains('NetworkError') || raw.contains('SocketException')) {
       return 'No internet connection.\nPull down to retry when you\'re back online.';
     }
-    return 'Could not load templates.\nPlease try again.';
+    return 'Error: $raw';
   }
 }
 
