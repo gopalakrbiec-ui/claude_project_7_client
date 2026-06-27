@@ -89,6 +89,9 @@ class _OrderStatusScreenState extends ConsumerState<OrderStatusScreen> {
           order: state.order,
           onGoHome: () => context.go('/home'),
           onTryAgain: () => context.pop(),
+          onDebugForceDone: () => ref
+              .read(orderStatusControllerProvider(widget.orderId).notifier)
+              .debugForceDone(),
           key: const ValueKey('rejected'),
         );
 
@@ -798,10 +801,12 @@ class _RejectedBody extends StatelessWidget {
     this.order,
     required this.onGoHome,
     required this.onTryAgain,
+    required this.onDebugForceDone,
   });
   final Order? order;
   final VoidCallback onGoHome;
   final VoidCallback onTryAgain;
+  final VoidCallback onDebugForceDone;
 
   @override
   Widget build(BuildContext context) {
@@ -859,6 +864,29 @@ class _RejectedBody extends StatelessWidget {
               onPressed: onGoHome,
               child: const Text('Try a Different Template'),
             ),
+            if (kDebugMode) ...[
+              const SizedBox(height: kSpaceLg),
+              const Divider(),
+              const SizedBox(height: kSpaceSm),
+              Text(
+                '🐛 DEBUG',
+                style: TextStyle(
+                  color: theme.colorScheme.outline,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: kSpaceSm),
+              OutlinedButton.icon(
+                onPressed: onDebugForceDone,
+                icon: const Icon(Icons.skip_next),
+                label: const Text('Skip to Done (test download/share)'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.deepPurple,
+                  side: const BorderSide(color: Colors.deepPurple),
+                ),
+              ),
+            ],
           ],
         ),
       ),

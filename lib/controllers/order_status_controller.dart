@@ -173,6 +173,23 @@ class OrderStatusController
 
   void clearNeedsTopup() => state = state.copyWith(needsTopup: false);
 
+  /// DEBUG only — forces the phase to done with a placeholder image so the
+  /// download/share flow can be tested without a real successful order.
+  void debugForceDone() {
+    state = state.copyWith(
+      phase: OrderPhase.done,
+      order: Order(
+        id: state.order?.id ?? 'debug',
+        status: 'done',
+        templateId: state.order?.templateId ?? 'debug',
+        pricePaise: 0,
+        priceDisplay: '₹0',
+        resultUrl: 'https://picsum.photos/seed/yaadein/800/1200',
+        createdAt: DateTime.now(),
+      ),
+    );
+  }
+
   // -- Polling loop ---------------------------------------------------------
 
   Future<void> _startPolling({required Duration delay}) async {
