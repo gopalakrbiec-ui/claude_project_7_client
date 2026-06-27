@@ -1,3 +1,4 @@
+import 'dart:developer' as dev;
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -131,6 +132,9 @@ class CreateOrderController
     final language =
         ref.read(localeControllerProvider).valueOrNull?.languageCode ?? 'en';
 
+    final key = state.idempotencyKey;
+    dev.log('[CreateOrder] submit start — template=${template.id} key=$key', name: 'order');
+
     state = state.copyWith(
       status: CreateOrderStatus.submitting,
       clearError: true,
@@ -138,10 +142,11 @@ class CreateOrderController
     );
 
     try {
+      dev.log('[CreateOrder] calling POST /orders', name: 'order');
       final order = await ref.read(ordersRepositoryProvider).createOrder(
             CreateOrderParams(
               templateId: template.id,
-              idempotencyKey: state.idempotencyKey, // REUSED on retry
+              idempotencyKey: key,
               name: state.name.trim(),
               eventDate: _formatDate(state.eventDate),
               theme: template.theme,
@@ -150,12 +155,14 @@ class CreateOrderController
               customerPhone: state.customerPhone,
             ),
           );
+      dev.log('[CreateOrder] success — orderId=${order.id}', name: 'order');
 
       state = state.copyWith(
         status: CreateOrderStatus.success,
         createdOrder: order,
       );
     } on ServerError catch (e) {
+      dev.log('[CreateOrder] ServerError ${e.statusCode}: ${e.message}', name: 'order');
       if (e.isInsufficientCredits) {
         state = state.copyWith(
           status: CreateOrderStatus.error,
@@ -168,14 +175,25 @@ class CreateOrderController
         );
       }
     } on NetworkError {
+      dev.log('[CreateOrder] NetworkError', name: 'order');
       state = state.copyWith(
         status: CreateOrderStatus.error,
         errorMessage: 'No internet connection. Please retry.',
       );
     } on ApiError catch (e) {
+      dev.log('[CreateOrder] ApiError: $e', name: 'order');
       state = state.copyWith(
         status: CreateOrderStatus.error,
         errorMessage: e.toString(),
+      );
+    } catch (e, st) {
+      // Catches TypeError / FormatException from Order.fromJson, or any
+      // unexpected exception — without this the state stays 'submitting'
+      // forever and the spinner never stops.
+      dev.log('[CreateOrder] unexpected error: $e\n$st', name: 'order', error: e);
+      state = state.copyWith(
+        status: CreateOrderStatus.error,
+        errorMessage: 'Unexpected error: $e',
       );
     }
   }

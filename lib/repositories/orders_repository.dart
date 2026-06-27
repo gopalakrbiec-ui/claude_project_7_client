@@ -1,3 +1,4 @@
+import 'dart:developer' as dev;
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/dio_client.dart';
@@ -42,6 +43,7 @@ class OrdersRepository {
   final Dio _dio;
 
   Future<Order> createOrder(CreateOrderParams params) async {
+    dev.log('[OrdersRepo] POST /orders — templateId=${params.templateId} key=${params.idempotencyKey}', name: 'order');
     try {
       final response = await _dio.post<Map<String, dynamic>>('/orders', data: {
         'template_id': params.templateId,
@@ -58,8 +60,10 @@ class OrdersRepository {
         },
       });
 
+      dev.log('[OrdersRepo] POST /orders response ${response.statusCode}: ${response.data}', name: 'order');
       return Order.fromJson(response.data!);
     } on DioException catch (e) {
+      dev.log('[OrdersRepo] DioException: ${e.type} ${e.response?.statusCode} ${e.response?.data}', name: 'order');
       throw DioClient.handleDioError(e);
     }
   }
