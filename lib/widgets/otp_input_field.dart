@@ -91,6 +91,13 @@ class OtpInputFieldState extends State<OtpInputField> {
     _focusNodes[0].requestFocus();
   }
 
+  void prefill(String value) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    for (var i = 0; i < widget.length && i < digits.length; i++) {
+      _controllers[i].text = digits[i];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

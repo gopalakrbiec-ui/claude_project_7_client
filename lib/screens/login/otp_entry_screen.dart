@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -32,6 +33,11 @@ class _OtpEntryScreenState extends ConsumerState<OtpEntryScreen> {
   void initState() {
     super.initState();
     _startResendTimer();
+    if (kDebugMode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _otpKey.currentState?.prefill('000000');
+      });
+    }
   }
 
   @override

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,9 +46,10 @@ class OrdersRepository {
 
   Future<Order> createOrder(CreateOrderParams params) async {
     try {
-      FormData? formData;
-      if (params.photoFile != null) {
-        final inputPayload = <String, dynamic>{
+      final response = await _dio.post<Map<String, dynamic>>('/orders', data: {
+        'template_id': params.templateId,
+        'idempotency_key': params.idempotencyKey,
+        'input_payload': {
           'name': params.name,
           'event_date': params.eventDate,
           'theme': params.theme,
@@ -58,34 +58,8 @@ class OrdersRepository {
           if (params.customerPhone != null &&
               params.customerPhone!.isNotEmpty)
             'customer_phone': params.customerPhone,
-        };
-        formData = FormData.fromMap({
-          'template_id': params.templateId,
-          'idempotency_key': params.idempotencyKey,
-          'input_payload': jsonEncode(inputPayload),
-          'photo': await MultipartFile.fromFile(
-            params.photoFile!.path,
-            filename: 'photo.jpg',
-          ),
-        });
-      }
-
-      final response = await (formData != null
-          ? _dio.post<Map<String, dynamic>>('/orders', data: formData)
-          : _dio.post<Map<String, dynamic>>('/orders', data: {
-              'template_id': params.templateId,
-              'idempotency_key': params.idempotencyKey,
-              'input_payload': {
-                'name': params.name,
-                'event_date': params.eventDate,
-                'theme': params.theme,
-                'language': params.language,
-                'media_type': params.mediaType,
-                if (params.customerPhone != null &&
-                    params.customerPhone!.isNotEmpty)
-                  'customer_phone': params.customerPhone,
-              },
-            }));
+        },
+      });
 
       return Order.fromJson(response.data!);
     } on DioException catch (e) {

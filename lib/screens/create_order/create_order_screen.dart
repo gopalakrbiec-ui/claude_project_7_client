@@ -183,25 +183,26 @@ class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
               const SizedBox(height: kSpaceMd),
             ],
 
-            // Submit / insufficient-credits CTA
-            if (!canAfford && balanceAsync.hasValue)
+            // Submit button — always shown; balance warning above is informational only.
+            ElevatedButton(
+              onPressed: state.isSubmitting
+                  ? null
+                  : () => _submit(ctrl, state),
+              child: state.isSubmitting
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Proceed to Payment'),
+            ),
+            if (!canAfford && balanceAsync.hasValue) ...[
+              const SizedBox(height: kSpaceSm),
               OutlinedButton(
                 onPressed: () => context.push('/home/topup'),
                 child: const Text('Top Up Credits'),
-              )
-            else
-              ElevatedButton(
-                onPressed: state.isSubmitting
-                    ? null
-                    : () => _submit(ctrl, state),
-                child: state.isSubmitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Proceed to Payment'),
               ),
+            ],
 
             const SizedBox(height: kSpaceLg),
           ],

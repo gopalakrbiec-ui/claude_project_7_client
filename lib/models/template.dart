@@ -8,6 +8,7 @@ class Template {
     required this.theme,
     required this.basePricePaise,
     required this.assetKeys,
+    this.previewUrl,
   });
 
   final String id;
@@ -18,6 +19,8 @@ class Template {
   final int basePricePaise;
   /// Ordered list of CDN asset keys / URLs for this template.
   final List<String> assetKeys;
+  /// Direct CDN URL for the grid thumbnail — preferred over assetKeys.first.
+  final String? previewUrl;
 
   /// Pre-formatted display price — derived from basePricePaise by formatting
   /// here since the backend does NOT return a price_display for templates
@@ -30,8 +33,9 @@ class Template {
         : '₹${rupees.toStringAsFixed(2)}';
   }
 
-  /// First asset key used as thumbnail. Returns null if list is empty.
-  String? get thumbnailKey => assetKeys.isEmpty ? null : assetKeys.first;
+  /// Thumbnail URL: previewUrl if available, else first asset key.
+  String? get thumbnailKey =>
+      previewUrl ?? (assetKeys.isEmpty ? null : assetKeys.first);
 
   factory Template.fromJson(Map<String, dynamic> json) {
     // asset_keys may be an empty map {} (backend quirk) or a proper list [].
@@ -48,6 +52,7 @@ class Template {
       theme: json['theme'] as String,
       basePricePaise: json['base_price_paise'] as int,
       assetKeys: assetKeys,
+      previewUrl: json['preview_url'] as String?,
     );
   }
 
