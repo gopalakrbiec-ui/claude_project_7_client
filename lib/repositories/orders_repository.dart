@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/dio_client.dart';
@@ -23,7 +22,6 @@ class CreateOrderParams {
     required this.theme,
     required this.language,
     required this.mediaType,
-    this.photoFile,
     this.customerPhone,
   });
 
@@ -34,7 +32,6 @@ class CreateOrderParams {
   final String theme;
   final String language;
   final String mediaType; // "image" | "video"
-  final File? photoFile;
   /// Agent-only: forwarded in input_payload.customer_phone.
   /// Backend infers the agent role from the JWT; this is purely metadata.
   final String? customerPhone;

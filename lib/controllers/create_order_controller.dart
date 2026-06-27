@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../api/api_error.dart';
 import '../controllers/locale_controller.dart';
-import '../core/image_compress.dart';
 import '../models/order.dart';
 import '../models/template.dart';
 import '../repositories/orders_repository.dart';
@@ -132,13 +131,6 @@ class CreateOrderController
     final language =
         ref.read(localeControllerProvider).valueOrNull?.languageCode ?? 'en';
 
-    File? compressedPhoto;
-    if (state.photoFile != null) {
-      compressedPhoto = await ref
-          .read(imageCompressorProvider)
-          .compress(state.photoFile!);
-    }
-
     state = state.copyWith(
       status: CreateOrderStatus.submitting,
       clearError: true,
@@ -155,7 +147,6 @@ class CreateOrderController
               theme: template.theme,
               language: language,
               mediaType: state.mediaType,
-              photoFile: compressedPhoto,
               customerPhone: state.customerPhone,
             ),
           );
