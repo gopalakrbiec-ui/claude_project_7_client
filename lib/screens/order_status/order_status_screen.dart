@@ -88,6 +88,7 @@ class _OrderStatusScreenState extends ConsumerState<OrderStatusScreen> {
         return _RejectedBody(
           order: state.order,
           onGoHome: () => context.go('/home'),
+          onTryAgain: () => context.pop(),
           key: const ValueKey('rejected'),
         );
 
@@ -792,13 +793,20 @@ class _RemovingWatermarkBody extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _RejectedBody extends StatelessWidget {
-  const _RejectedBody({super.key, this.order, required this.onGoHome});
+  const _RejectedBody({
+    super.key,
+    this.order,
+    required this.onGoHome,
+    required this.onTryAgain,
+  });
   final Order? order;
   final VoidCallback onGoHome;
+  final VoidCallback onTryAgain;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final reason = order?.rejectionReason;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(kSpaceLg),
@@ -821,16 +829,33 @@ class _RejectedBody extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                'This request contains content we\'re unable to process — '
-                'for example, real people, public figures, or unsupported '
-                'themes. Your credits have been fully refunded.',
+                reason ??
+                    'This request was rejected during moderation. '
+                    'Your credits have been fully refunded.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onErrorContainer),
                 textAlign: TextAlign.center,
               ),
             ),
+            if (kDebugMode && reason == null) ...[
+              const SizedBox(height: kSpaceSm),
+              Text(
+                'DEBUG: no rejection_reason / moderation_reason / reason in API response',
+                style: TextStyle(
+                  color: theme.colorScheme.error,
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
             const SizedBox(height: kSpaceXl),
             ElevatedButton(
+              onPressed: onTryAgain,
+              child: const Text('Try Again'),
+            ),
+            const SizedBox(height: kSpaceSm),
+            OutlinedButton(
               onPressed: onGoHome,
               child: const Text('Try a Different Template'),
             ),

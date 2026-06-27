@@ -8,6 +8,7 @@ class Order {
     required this.priceDisplay,
     this.resultUrl,
     required this.createdAt,
+    this.rejectionReason,
   });
 
   final String id;
@@ -24,6 +25,10 @@ class Order {
   final String? resultUrl;
 
   final DateTime createdAt;
+
+  /// Human-readable reason why moderation rejected this order.
+  /// Present when status == 'rejected'; null otherwise.
+  final String? rejectionReason;
 
   // -- Status helpers -------------------------------------------------------
 
@@ -57,5 +62,8 @@ class Order {
         createdAt: json['created_at'] != null
             ? DateTime.parse(json['created_at'] as String)
             : DateTime.now(),
+        rejectionReason: json['rejection_reason'] as String? ??
+            json['moderation_reason'] as String? ??
+            json['reason'] as String?,
       );
 }
