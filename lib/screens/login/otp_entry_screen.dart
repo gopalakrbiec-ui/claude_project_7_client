@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../api/api_error.dart';
 import '../../controllers/auth_controller.dart';
 import '../../core/constants.dart';
+import '../../core/theme.dart';
 import '../../widgets/otp_input_field.dart' show OtpInputField, OtpInputFieldState;
 
 const _kResendCooldownSeconds = 60;
@@ -142,23 +143,59 @@ class _OtpEntryScreenState extends ConsumerState<OtpEntryScreen> {
         : widget.normalisedPhone;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Verify OTP'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/login'),
-        ),
-      ),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(kSpaceLg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: kSpaceXl),
+              // Gradient hero — same visual language as phone entry
+              Stack(
+                children: [
+                  Container(
+                    height: 200,
+                    decoration: const BoxDecoration(
+                      gradient: kBrandGradient,
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(32),
+                        bottomRight: Radius.circular(32),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 12,
+                    left: 4,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => context.go('/login'),
+                    ),
+                  ),
+                  const Positioned.fill(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.mark_email_read_outlined,
+                            size: 52, color: Colors.white),
+                        SizedBox(height: 10),
+                        Text(
+                          'OTP Sent!',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
 
-              Icon(Icons.sms_outlined,
-                  size: 64, color: theme.colorScheme.primary),
+              Padding(
+                padding: const EdgeInsets.all(kSpaceLg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
               const SizedBox(height: kSpaceLg),
 
               Text(
@@ -236,6 +273,9 @@ class _OtpEntryScreenState extends ConsumerState<OtpEntryScreen> {
                 child: Text(
                   'Wrong number? Change it',
                   style: TextStyle(color: theme.colorScheme.primary),
+                ),
+              ),
+            ],
                 ),
               ),
             ],

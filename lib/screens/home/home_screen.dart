@@ -21,11 +21,18 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Choose a Template'),
+        title: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.auto_awesome, size: 20),
+            SizedBox(width: 6),
+            Text('Yaadein'),
+          ],
+        ),
         actions: [
           if (isAgent)
             IconButton(
-              icon: const Icon(Icons.store),
+              icon: const Icon(Icons.storefront_outlined),
               tooltip: 'My Earnings',
               onPressed: () => context.go('/home/agent-earnings'),
             ),

@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../core/theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gal/gal.dart';
 import 'package:go_router/go_router.dart';
@@ -641,30 +642,42 @@ class _DoneBody extends StatelessWidget {
 
     return Column(
       children: [
-        // Result image — takes ~60 % of screen
+        // Result image — takes ~55% of screen
         Expanded(
-          flex: 60,
+          flex: 55,
           child: _ResultImage(url: displayUrl),
+        ),
+
+        // Gradient success banner
+        Container(
+          decoration: const BoxDecoration(gradient: kBrandGradient),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                hasCleanVersion ? 'Watermark Removed!' : 'Your design is ready!',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
 
         // Action panel
         Expanded(
-          flex: 40,
+          flex: 45,
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
                 kSpaceLg, kSpaceMd, kSpaceLg, kSpaceLg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  hasCleanVersion
-                      ? 'Watermark Removed!'
-                      : 'Your design is ready!',
-                  style: theme.textTheme.titleLarge,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: kSpaceMd),
-
                 // Primary CTA: WhatsApp (the growth loop)
                 ElevatedButton.icon(
                   onPressed: isDownloading ? null : onShare,
@@ -672,22 +685,21 @@ class _DoneBody extends StatelessWidget {
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.share),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.share_rounded),
                   label: const Text('Share on WhatsApp'),
                 ),
                 const SizedBox(height: kSpaceSm),
 
-                // Save to phone
                 OutlinedButton.icon(
                   onPressed: isDownloading ? null : onSave,
-                  icon: const Icon(Icons.download_outlined),
+                  icon: const Icon(Icons.save_alt_rounded),
                   label: const Text('Save to Phone'),
                 ),
 
                 if (!hasCleanVersion) ...[
                   const SizedBox(height: kSpaceSm),
-                  // Remove watermark (paid upgrade)
                   if (state.errorMessage != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: kSpaceXs),
@@ -704,8 +716,7 @@ class _DoneBody extends StatelessWidget {
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2))
+                            child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.auto_fix_high_outlined),
                     label: Text(
                       isRemoving
