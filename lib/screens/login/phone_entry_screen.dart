@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../api/api_error.dart';
 import '../../controllers/auth_controller.dart';
-import '../../core/constants.dart';
 
 // ---------------------------------------------------------------------------
 // Phone normalisation (pure function — easy to unit-test)

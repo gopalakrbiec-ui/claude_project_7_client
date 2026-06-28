@@ -27,7 +27,6 @@ class _RouterNotifier extends ChangeNotifier {
   final Ref _ref;
 
   String? redirect(BuildContext context, GoRouterState state) {
-    final localeAsync = _ref.read(localeControllerProvider);
     final authState = _ref.read(authControllerProvider);
 
     // While auth is still loading, show splash.

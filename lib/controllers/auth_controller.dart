@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_error.dart';
-import '../core/constants.dart';
 import '../core/token_storage.dart';
 import '../models/user_profile.dart';
 import '../repositories/auth_repository.dart';
