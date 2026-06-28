@@ -64,6 +64,10 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> _doInit() async {
+    // Ensure at least one async hop before setting state. If _doInit() completes
+    // synchronously (e.g. token == null path has no awaits), Riverpod overwrites
+    // our state assignment with build()'s return value (AuthInitializing).
+    await Future<void>.value();
     final storage = ref.read(tokenStorageProvider);
     // Synchronous read — never hangs, no Keystore involved.
     final token = storage.token;
