@@ -89,7 +89,7 @@ class _TopupScreenState extends ConsumerState<TopupScreen> {
         'wallets': ['paytm', 'phonepe', 'googlepay'],
       },
       'theme': {
-        'color': '#0D47A1', // matches app primary
+        'color': '#FF6B23', // saffron brand colour
       },
       'retry': {
         // We handle retry ourselves; don't let Razorpay loop internally.

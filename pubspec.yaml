@@ -23,9 +23,6 @@ dependencies:
   freezed_annotation: ^2.4.1
   json_annotation: ^4.9.0
 
-  # Secure storage (JWT token)
-  flutter_secure_storage: ^9.2.2
-
   # Image caching
   cached_network_image: ^3.3.1
 
