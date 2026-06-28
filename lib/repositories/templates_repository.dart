@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/dio_client.dart';
 import '../controllers/auth_controller.dart';
+import '../core/token_storage.dart';
 import '../core/constants.dart';
 import '../models/template.dart';
 
@@ -46,7 +47,7 @@ class _CacheKey {
 // Provider
 // ---------------------------------------------------------------------------
 final templatesRepositoryProvider = Provider<TemplatesRepository>((ref) {
-  final storage = ref.read(secureStorageProvider);
+  final storage = ref.read(tokenStorageProvider);
   final dio = DioClient.create(
     storage,
     () => ref.read(authControllerProvider.notifier).forceLogout(),

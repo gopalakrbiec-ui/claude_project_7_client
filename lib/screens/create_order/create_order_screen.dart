@@ -79,6 +79,15 @@ class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
     super.initState();
     _nameController = TextEditingController();
     _phoneController = TextEditingController();
+    // If a previous order for this template succeeded, reset so the user
+    // gets a blank form instead of being immediately redirected to the old result.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctrl = ref.read(
+          createOrderControllerProvider(widget.template.id).notifier);
+      final state =
+          ref.read(createOrderControllerProvider(widget.template.id));
+      if (state.isSuccess) ctrl.startNewOrder();
+    });
   }
 
   @override

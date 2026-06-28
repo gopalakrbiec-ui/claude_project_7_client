@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_error.dart';
 import '../api/dio_client.dart';
 import '../controllers/auth_controller.dart';
+import '../core/token_storage.dart';
 import '../models/user_profile.dart';
 import '../models/verify_otp_result.dart';
 
@@ -10,7 +11,7 @@ import '../models/verify_otp_result.dart';
 // Provider
 // ---------------------------------------------------------------------------
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final storage = ref.read(secureStorageProvider);
+  final storage = ref.read(tokenStorageProvider);
   final dio = DioClient.create(
     storage,
     () => ref.read(authControllerProvider.notifier).forceLogout(),

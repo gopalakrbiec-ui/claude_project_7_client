@@ -1,28 +1,9 @@
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../api/api_error.dart';
 import '../core/constants.dart';
+import '../core/token_storage.dart';
 import '../models/user_profile.dart';
-
 import '../repositories/auth_repository.dart';
-
-// ---------------------------------------------------------------------------
-// Shared secure-storage instance — override in tests via ProviderContainer.
-// ---------------------------------------------------------------------------
-final secureStorageProvider = Provider<FlutterSecureStorage>(
-  // AndroidOptions(encryptedSharedPreferences: true) uses Jetpack
-  // EncryptedSharedPreferences instead of the hardware Keystore path.
-  // The hardware Keystore can deadlock the platform channel when the device
-  // reboots or the screen is locked, causing an infinite spinner that
-  // no Future.timeout() can rescue (the Dart event loop itself stalls).
-  // EncryptedSharedPreferences avoids that lock entirely.
-  // NOTE: existing tokens stored under the old options are unreadable here,
-  // so users will be signed out once on the first update — acceptable.
-  (_) => const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-  ),
-);
 
 // ---------------------------------------------------------------------------
 // Auth state — sealed so the router and UI can exhaustively match.
@@ -52,14 +33,6 @@ final class AuthAuthenticated extends AuthState {
 // ---------------------------------------------------------------------------
 // Derived role provider
 // ---------------------------------------------------------------------------
-// Single reactive bool watched by all role-gated widgets and the router.
-// Updates automatically whenever /auth/me refreshes the profile (launch,
-// resume, or manual refresh), so role changes propagate without navigation.
-//
-// Why not read role from secure storage directly in widgets?
-// Secure storage is async; this derived Provider is synchronous and
-// composable — the router and every widget get the same consistent value
-// with no await/FutureBuilder.
 final isAgentProvider = Provider<bool>((ref) {
   final auth = ref.watch(authControllerProvider);
   return auth is AuthAuthenticated && auth.profile.isAgent;
@@ -85,19 +58,16 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> _init() async {
     try {
-      await _doInit().timeout(const Duration(seconds: 12));
-    } on TimeoutException {
-      // flutter_secure_storage can hang on Android Keystore lock after restart.
-      // Fall through to login rather than spinning forever.
-      state = const AuthUnauthenticated();
+      await _doInit();
     } catch (_) {
       state = const AuthUnauthenticated();
     }
   }
 
   Future<void> _doInit() async {
-    final storage = ref.read(secureStorageProvider);
-    final token = await storage.read(key: kTokenKey);
+    final storage = ref.read(tokenStorageProvider);
+    // Synchronous read — never hangs, no Keystore involved.
+    final token = storage.token;
 
     if (token == null) {
       state = const AuthUnauthenticated();
@@ -105,28 +75,27 @@ class AuthController extends Notifier<AuthState> {
     }
 
     try {
-      // CLAUDE.md contract rule: call GET /auth/me on every launch/resume to
-      // refresh role + profile; never trust only the locally stored role.
+      // CLAUDE.md contract: call GET /auth/me on every launch/resume.
       final profile = await ref.read(authRepositoryProvider).getMe();
-      await storage.write(key: kRoleKey, value: profile.role);
+      await storage.writeRole(profile.role);
       state = AuthAuthenticated(profile: profile);
     } on ServerError catch (e) {
       if (e.isUnauthorised) {
-        await _clearCredentials(storage);
+        await storage.clear();
         state = const AuthUnauthenticated();
         return;
       }
-      final storedRole = await storage.read(key: kRoleKey) ?? 'user';
+      final storedRole = storage.role ?? 'user';
       state = AuthAuthenticated(
         profile: UserProfile(id: '', phone: '', role: storedRole),
       );
     } on NetworkError {
-      final storedRole = await storage.read(key: kRoleKey) ?? 'user';
+      final storedRole = storage.role ?? 'user';
       state = AuthAuthenticated(
         profile: UserProfile(id: '', phone: '', role: storedRole),
       );
     } catch (_) {
-      final storedRole = await storage.read(key: kRoleKey) ?? 'user';
+      final storedRole = storage.role ?? 'user';
       state = AuthAuthenticated(
         profile: UserProfile(id: '', phone: '', role: storedRole),
       );
@@ -150,24 +119,19 @@ class AuthController extends Notifier<AuthState> {
 
   // ── OTP flow ─────────────────────────────────────────────────────────────
 
-  /// Throws [ApiError] on failure; callers handle errors and show UI feedback.
   Future<void> requestOtp(String normalisedPhone) async {
     await ref.read(authRepositoryProvider).requestOtp(normalisedPhone);
   }
 
-  /// On success: stores token + role, transitions to [AuthAuthenticated].
-  /// Throws [ApiError] on failure (wrong code, expired, too many attempts).
   Future<void> verifyOtp(String normalisedPhone, String code) async {
     final result =
         await ref.read(authRepositoryProvider).verifyOtp(normalisedPhone, code);
 
-    final storage = ref.read(secureStorageProvider);
-    await storage.write(key: kTokenKey, value: result.accessToken);
-    await storage.write(key: kRoleKey, value: result.role);
+    final storage = ref.read(tokenStorageProvider);
+    await storage.writeToken(result.accessToken);
+    await storage.writeRole(result.role);
 
     final profile = UserProfile(
-      // Profile fields are filled in from the next /auth/me call (on next
-      // launch), but we have enough for role-gating right now.
       id: '',
       phone: normalisedPhone,
       role: result.role,
@@ -178,20 +142,9 @@ class AuthController extends Notifier<AuthState> {
   // ── Session termination ───────────────────────────────────────────────────
 
   Future<void> logout() async {
-    final storage = ref.read(secureStorageProvider);
-    await _clearCredentials(storage);
+    await ref.read(tokenStorageProvider).clear();
     state = const AuthUnauthenticated();
   }
 
-  /// Called by the JWT interceptor when a 401 is received mid-session.
   void forceLogout() => state = const AuthUnauthenticated();
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
-  Future<void> _clearCredentials(FlutterSecureStorage storage) async {
-    await Future.wait([
-      storage.delete(key: kTokenKey),
-      storage.delete(key: kRoleKey),
-    ]);
-  }
 }
