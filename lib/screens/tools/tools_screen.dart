@@ -20,32 +20,28 @@ import '../../widgets/insufficient_credits_dialog.dart';
 // ---------------------------------------------------------------------------
 // Tool enum
 // ---------------------------------------------------------------------------
-enum AiTool { faceSwap, restore, bgRemove, upscale }
+enum AiTool { restore, bgRemove, upscale }
 
 extension AiToolExt on AiTool {
   String get title => switch (this) {
-        AiTool.faceSwap  => 'Face Swap',
         AiTool.restore   => 'Photo Restore',
         AiTool.bgRemove  => 'Remove Background',
         AiTool.upscale   => 'Upscale 4×',
       };
 
   String get subtitle => switch (this) {
-        AiTool.faceSwap  => 'Swap your face into any template or photo',
         AiTool.restore   => 'Repair old, blurry or damaged photos',
         AiTool.bgRemove  => 'Remove background — get a transparent PNG',
         AiTool.upscale   => 'Enhance resolution by 4× — DSLR quality',
       };
 
   IconData get icon => switch (this) {
-        AiTool.faceSwap  => Icons.face_retouching_natural,
         AiTool.restore   => Icons.auto_fix_high,
         AiTool.bgRemove  => Icons.layers_clear_outlined,
         AiTool.upscale   => Icons.hd_outlined,
       };
 
   List<Color> get gradient => switch (this) {
-        AiTool.faceSwap  => [kSaffron, kMagenta],
         AiTool.restore   => [const Color(0xFF1565C0), const Color(0xFF42A5F5)],
         AiTool.bgRemove  => [const Color(0xFF2E7D32), const Color(0xFF66BB6A)],
         AiTool.upscale   => [const Color(0xFF6A1B9A), const Color(0xFFCE93D8)],
@@ -165,7 +161,7 @@ class ToolWorkScreen extends ConsumerStatefulWidget {
 class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   AiTool get tool => AiTool.values.firstWhere(
         (t) => t.name == widget.toolName,
-        orElse: () => AiTool.faceSwap,
+        orElse: () => AiTool.restore,
       );
 
   File? _sourcePhoto;
@@ -278,10 +274,6 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
       final ToolResult result;
 
       switch (tool) {
-        case AiTool.faceSwap:
-          // For face swap on this screen, no target image — show placeholder.
-          // Full face swap with template selection is on the create order flow.
-          result = await repo.restorePhoto(_sourcePhotoKey!);
         case AiTool.restore:
           result = await repo.restorePhoto(_sourcePhotoKey!);
         case AiTool.bgRemove:
