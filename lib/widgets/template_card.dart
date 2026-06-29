@@ -1,6 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import '../core/constants.dart';
 import '../core/theme.dart';
 import '../models/template.dart';
 
@@ -9,64 +8,109 @@ class TemplateCard extends StatelessWidget {
     super.key,
     required this.template,
     required this.onTap,
+    this.isHot = false,
   });
 
   final Template template;
   final VoidCallback onTap;
+  final bool isHot;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.hardEdge,
-      child: InkWell(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: GestureDetector(
         onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Expanded(
-              flex: 3,
-              child: _Thumbnail(
-                assetKey: template.thumbnailKey,
-                templateName: template.name,
-                theme: template.theme,
+            // Image / placeholder
+            _Thumbnail(
+              assetKey: template.thumbnailKey,
+              templateName: template.name,
+              theme: template.theme,
+            ),
+            // Gradient scrim — bottom third
+            const Align(
+              alignment: Alignment.bottomCenter,
+              child: _BottomScrim(),
+            ),
+            // Name overlay
+            Positioned(
+              left: 10,
+              right: 10,
+              bottom: 10,
+              child: Text(
+                template.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  height: 1.3,
+                  shadows: [
+                    Shadow(color: Colors.black54, blurRadius: 4),
+                  ],
+                ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  kSpaceSm, kSpaceSm, kSpaceSm, kSpaceSm),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    template.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      _ThemeTag(label: template.theme),
-                      const Spacer(),
-                      Text(
-                        template.priceDisplay,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            // HOT badge — top left
+            if (isHot)
+              Positioned(
+                top: 8,
+                left: 8,
+                child: _HotBadge(),
               ),
-            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _BottomScrim extends StatelessWidget {
+  const _BottomScrim();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 80,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [Colors.black87, Colors.transparent],
+        ),
+      ),
+    );
+  }
+}
+
+class _HotBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF3D00),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('🔥', style: TextStyle(fontSize: 10)),
+          SizedBox(width: 2),
+          Text(
+            'HOT',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -93,8 +137,9 @@ class _Thumbnail extends StatelessWidget {
       fit: BoxFit.cover,
       memCacheWidth: 300,
       memCacheHeight: 400,
-      placeholder: (_, __) => ColoredBox(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      placeholder: (_, __) => _PlaceholderTile(
+        name: templateName,
+        theme: theme,
       ),
       errorWidget: (_, __, ___) => _PlaceholderTile(
         name: templateName,
@@ -104,21 +149,19 @@ class _Thumbnail extends StatelessWidget {
   }
 }
 
-// Shown when no image URL is available yet — gradient + initials.
 class _PlaceholderTile extends StatelessWidget {
   const _PlaceholderTile({required this.name, required this.theme});
   final String name;
   final String theme;
 
-  // Deterministic gradient per theme so each category has a consistent colour.
   static const _palettes = <String, List<Color>>{
-    'floral':   [Color(0xFFFF9A9E), Color(0xFFFECFEF)],
+    'floral':   [Color(0xFFD4145A), Color(0xFFFBB03B)],
     'bridal':   [Color(0xFFE91E8C), Color(0xFFFF6B23)],
-    'wedding':  [Color(0xFFFFD700), Color(0xFFFF6B23)],
-    'royal':    [Color(0xFF6A1B9A), Color(0xFFE91E8C)],
-    'garden':   [Color(0xFF43A047), Color(0xFFAED581)],
-    'birthday': [Color(0xFF42A5F5), Color(0xFFCE93D8)],
-    'business': [Color(0xFF37474F), Color(0xFF78909C)],
+    'wedding':  [Color(0xFF8B0057), Color(0xFFFF6B23)],
+    'royal':    [Color(0xFF4A0080), Color(0xFFE91E8C)],
+    'garden':   [Color(0xFF1B5E20), Color(0xFF66BB6A)],
+    'birthday': [Color(0xFF1565C0), Color(0xFFAB47BC)],
+    'business': [Color(0xFF1A237E), Color(0xFF37474F)],
   };
 
   @override
@@ -139,33 +182,10 @@ class _PlaceholderTile extends StatelessWidget {
           initial,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 48,
-            fontWeight: FontWeight.w700,
-            shadows: [Shadow(blurRadius: 8, color: Colors.black26)],
+            fontSize: 52,
+            fontWeight: FontWeight.w800,
+            shadows: [Shadow(blurRadius: 12, color: Colors.black38)],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ThemeTag extends StatelessWidget {
-  const _ThemeTag({required this.label});
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onSecondaryContainer,
         ),
       ),
     );
