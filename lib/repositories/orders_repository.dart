@@ -106,7 +106,6 @@ class OrdersRepository {
           total: data.length,
           page: page,
           limit: limit,
-          hasMore: false,
         );
       }
       return OrderListPage(orders: const [], total: 0, page: page, limit: limit);

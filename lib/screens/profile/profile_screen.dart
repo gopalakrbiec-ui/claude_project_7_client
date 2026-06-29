@@ -89,7 +89,7 @@ class ProfileScreen extends ConsumerWidget {
                 if (city != null && city.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    [city, country].where((s) => s != null && s!.isNotEmpty).join(', '),
+                    [city, country].where((s) => s != null && s.isNotEmpty).join(', '),
                     style: const TextStyle(color: Colors.white60, fontSize: 13),
                   ),
                 ],
