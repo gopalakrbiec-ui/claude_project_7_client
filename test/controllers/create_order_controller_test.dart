@@ -193,7 +193,7 @@ void main() {
     test('sets isInsufficientCredits on 402', () async {
       final c = _makeContainer(repo: repo);
       when(() => repo.createOrder(any())).thenThrow(
-          const ServerError(statusCode: 402, message: 'Insufficient credits'));
+          const InsufficientCreditsError(availablePaise: 0, requiredPaise: 100));
 
       await c
           .read(createOrderControllerProvider('tpl1').notifier)
