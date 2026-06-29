@@ -45,8 +45,8 @@ class _RouterNotifier extends ChangeNotifier {
     }
 
     // 2. Authenticated user hits login → home or signup for new users
-    if (isAuthenticated && onLoginFlow) {
-      return (authState as AuthAuthenticated).isNewUser ? '/signup' : '/home';
+    if (onLoginFlow && authState is AuthAuthenticated) {
+      return authState.isNewUser ? '/signup' : '/home';
     }
 
     // 4. Agent-only route guard — consumers get redirected to home
