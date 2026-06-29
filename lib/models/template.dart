@@ -48,7 +48,7 @@ class Template {
       // id may come as int or string depending on backend serialiser.
       id: json['id'].toString(),
       name: json['name'] as String,
-      language: json['language'] as String,
+      language: (json['language'] as String?) ?? '',
       theme: json['theme'] as String,
       basePricePaise: json['base_price_paise'] as int,
       assetKeys: assetKeys,
