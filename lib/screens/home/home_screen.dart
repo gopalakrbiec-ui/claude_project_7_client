@@ -62,6 +62,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
+        color: kDarkSurface,
         shape: const CircularNotchedRectangle(),
         notchMargin: 8,
         height: 72,
@@ -114,7 +115,8 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? kSaffron : Theme.of(context).colorScheme.onSurfaceVariant;
+    // Nav sits on dark ribbon — use white for unselected, saffron for selected.
+    final color = selected ? kSaffron : Colors.white60;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -162,6 +164,9 @@ class _HomeAppBar extends ConsumerWidget implements PreferredSizeWidget {
     }
 
     return AppBar(
+      backgroundColor: kDarkSurface,
+      foregroundColor: Colors.white,
+      iconTheme: const IconThemeData(color: Colors.white),
       titleSpacing: kSpaceSm,
       title: Row(
         children: [
@@ -193,6 +198,7 @@ class _HomeAppBar extends ConsumerWidget implements PreferredSizeWidget {
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
+                        color: Colors.white,
                       ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
