@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- ── Drop shadow — slightly offset copy for 3-D lift ── -->
+    <path
+        android:pathData="M56,21
+            C 56,21 58.5,44 67,51
+              73,55 91,57 91,59
+              91,61 73,63 67,67
+              58.5,74 56,97 56,97
+              56,97 53.5,74 45,67
+              39,63 21,61 21,59
+              21,57 39,55 45,51
+              53.5,44 56,21 Z"
+        android:fillColor="#3A000000"/>
+
+    <!-- ── Main sparkle — white-to-gold linear gradient ── -->
+    <path android:pathData="M54,19
+            C 54,19 56.5,42 65,49
+              71,53 89,55 89,57
+              89,59 71,61 65,65
+              56.5,72 54,95 54,95
+              54,95 51.5,72 43,65
+              37,61 19,59 19,57
+              19,55 37,53 43,49
+              51.5,42 54,19 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="19" android:startY="19"
+                android:endX="89"   android:endY="95">
+                <item android:offset="0"   android:color="#FFFFFFFF"/>
+                <item android:offset="0.35" android:color="#FFFFFFEE"/>
+                <item android:offset="0.7" android:color="#FFFFD966"/>
+                <item android:offset="1"   android:color="#FFFFB300"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- ── Specular shine: left arm bright edge ── -->
+    <path
+        android:pathData="M46,23 C 48,34 50,44 54,49 C 50,43 47,33 46,23 Z"
+        android:fillColor="#70FFFFFF"/>
+
+    <!-- ── Top arm highlight ── -->
+    <path
+        android:pathData="M54,19 C 55,27 57,38 61,45 C 57,37 55,26 54,19 Z"
+        android:fillColor="#50FFFFFF"/>
+
+    <!-- ── Accent sparkle — top-right ── -->
+    <path
+        android:pathData="M81,27
+            C 81,27 82,33 85,35.5
+              87,37 93,38 93,39
+              93,40 87,41 85,43.5
+              82,46 81,52 81,52
+              81,52 80,46 77,43.5
+              75,41 69,40 69,39
+              69,38 75,37 77,35.5
+              80,33 81,27 Z"
+        android:fillColor="#DDFFFFFF"/>
+
+    <!-- ── Accent sparkle — bottom-left ── -->
+    <path
+        android:pathData="M27,68
+            C 27,68 27.5,71.5 29.5,73
+              31,74 34.5,74.5 34.5,75
+              34.5,75.5 31,76 29.5,77.5
+              27.5,79 27,82.5 27,82.5
+              27,82.5 26.5,79 24.5,77.5
+              23,76 19.5,75.5 19.5,75
+              19.5,74.5 23,74 24.5,73
+              26.5,71.5 27,68 Z"
+        android:fillColor="#AAFFFFFF"/>
+
+    <!-- ── Tiny glitter dot — top-left area ── -->
+    <path
+        android:pathData="M34,34
+            C 34,34 34.3,35.8 35.2,36.5
+              35.8,37 37.5,37.2 37.5,37.5
+              37.5,37.8 35.8,38 35.2,38.8
+              34.3,39.5 34,41.5 34,41.5
+              34,41.5 33.7,39.5 32.8,38.8
+              32.2,38 30.5,37.8 30.5,37.5
+              30.5,37.2 32.2,37 32.8,36.5
+              33.7,35.8 34,34 Z"
+        android:fillColor="#88FFFFFF"/>
+</vector>

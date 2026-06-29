@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Deep radial gradient: bright saffron centre → rich magenta edge for 3-D depth -->
+    <path android:pathData="M0,0 L108,0 L108,108 L0,108 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="42"
+                android:gradientRadius="72">
+                <item android:offset="0"   android:color="#FFFF8C35"/>
+                <item android:offset="0.4" android:color="#FFDD2255"/>
+                <item android:offset="0.75" android:color="#FFB0185A"/>
+                <item android:offset="1"   android:color="#FF6B0050"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Glossy dome highlight: upper-third semi-transparent white arc -->
+    <path android:pathData="M0,0 L108,0 L108,52 Q54,82 0,52 Z"
+        android:fillColor="#18FFFFFF"/>
+
+    <!-- Inner specular ring: gives the glass-ball / 3-D look -->
+    <path android:pathData="M54,4 A50,50 0 0,1 104,54"
+        android:strokeColor="#25FFFFFF"
+        android:strokeWidth="8"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"/>
+</vector>
