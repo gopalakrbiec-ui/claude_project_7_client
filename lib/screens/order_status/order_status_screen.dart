@@ -58,8 +58,19 @@ class _OrderStatusScreenState extends ConsumerState<OrderStatusScreen> {
         iconTheme: isPolling
             ? const IconThemeData(color: Colors.white)
             : null,
-        // Prevent accidental back-nav while result is loading.
-        automaticallyImplyLeading: state.isTerminal,
+        // Allow user to go back and browse while job runs in background.
+        automaticallyImplyLeading: true,
+        actions: isPolling
+            ? [
+                TextButton(
+                  onPressed: () => context.go('/home'),
+                  child: const Text(
+                    'Browse More',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ]
+            : null,
       ),
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),

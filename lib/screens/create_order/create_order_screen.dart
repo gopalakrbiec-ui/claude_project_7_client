@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../controllers/auth_controller.dart';
+import '../../controllers/background_orders_controller.dart';
 import '../../controllers/create_order_controller.dart';
 import '../../controllers/credits_controller.dart';
 import '../../controllers/templates_controller.dart';
@@ -118,7 +119,9 @@ class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
 
     ref.listen(createOrderControllerProvider(widget.template.id), (prev, next) {
       if (next.isSuccess && next.createdOrder != null) {
-        context.go('/home/order-status/${next.createdOrder!.id}');
+        final orderId = next.createdOrder!.id;
+        ref.read(backgroundOrdersProvider.notifier).trackOrder(orderId);
+        context.go('/home/order-status/$orderId');
       }
       // Show the rich Top Up dialog on 402 instead of a plain banner.
       if (next.isInsufficientCredits &&

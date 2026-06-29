@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../controllers/auth_controller.dart';
+import '../../controllers/background_orders_controller.dart';
 import '../../controllers/templates_controller.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
@@ -208,11 +209,34 @@ class _HomeAppBar extends ConsumerWidget implements PreferredSizeWidget {
             onPressed: () => context.push('/home/agent-earnings'),
           ),
         const BalanceChip(),
-        IconButton(
-          icon: const Icon(Icons.account_circle_outlined),
-          onPressed: () => context.push('/home/profile'),
-        ),
+        _ProfileBadgeButton(onTap: () {
+          ref.read(backgroundOrdersProvider.notifier).clearCompleted();
+          context.push('/home/profile');
+        }),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Profile button with completed-orders badge
+// ---------------------------------------------------------------------------
+class _ProfileBadgeButton extends ConsumerWidget {
+  const _ProfileBadgeButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasCompleted = ref.watch(
+      backgroundOrdersProvider.select((s) => s.hasCompleted),
+    );
+    return IconButton(
+      onPressed: onTap,
+      icon: Badge(
+        isLabelVisible: hasCompleted,
+        backgroundColor: Colors.red,
+        child: const Icon(Icons.account_circle_outlined),
+      ),
     );
   }
 }
