@@ -1,10 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:life_event_editor/api/api_error.dart';
-import 'package:life_event_editor/controllers/locale_controller.dart';
 import 'package:life_event_editor/controllers/templates_controller.dart';
 import 'package:life_event_editor/models/template.dart';
 import 'package:life_event_editor/repositories/templates_repository.dart';
@@ -14,22 +12,13 @@ import 'package:life_event_editor/repositories/templates_repository.dart';
 // ---------------------------------------------------------------------------
 class MockTemplatesRepository extends Mock implements TemplatesRepository {}
 
-class _FixedLocaleController extends LocaleController {
-  _FixedLocaleController(this._locale);
-  final Locale? _locale;
-
-  @override
-  Future<Locale?> build() async => _locale;
-}
-
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
-Template _tpl(String id, {String theme = 'floral', String language = 'en'}) =>
-    Template(
+Template _tpl(String id, {String theme = 'floral'}) => Template(
       id: id,
       name: 'Template $id',
-      language: language,
+      language: 'en',
       theme: theme,
       basePricePaise: 1000,
       assetKeys: ['https://cdn.example.com/$id.jpg'],
@@ -44,16 +33,10 @@ final _kTemplates = [
 // ---------------------------------------------------------------------------
 // Test container factory
 // ---------------------------------------------------------------------------
-ProviderContainer _makeContainer({
-  required MockTemplatesRepository repo,
-  Locale locale = const Locale('en'),
-}) {
+ProviderContainer _makeContainer({required MockTemplatesRepository repo}) {
   final c = ProviderContainer(
     overrides: [
       templatesRepositoryProvider.overrideWithValue(repo),
-      localeControllerProvider.overrideWith(
-        () => _FixedLocaleController(locale),
-      ),
     ],
   );
   addTearDown(c.dispose);
@@ -78,9 +61,8 @@ void main() {
   });
 
   group('Initial load', () {
-    test('returns templates on success', () async {
+    test('returns all templates on success', () async {
       when(() => repo.getTemplates(
-            language: 'en',
             theme: null,
             bypassCache: false,
           )).thenAnswer((_) async => _kTemplates);
@@ -93,26 +75,8 @@ void main() {
       expect(state.value, _kTemplates);
     });
 
-    test('uses locale language code in the API call', () async {
-      when(() => repo.getTemplates(
-            language: 'hi',
-            theme: null,
-            bypassCache: false,
-          )).thenAnswer((_) async => [_tpl('1', language: 'hi')]);
-
-      final c = _makeContainer(repo: repo, locale: const Locale('hi'));
-      await _settle(c);
-
-      verify(() => repo.getTemplates(
-            language: 'hi',
-            theme: null,
-            bypassCache: false,
-          )).called(1);
-    });
-
     test('surfaces error on API failure', () async {
       when(() => repo.getTemplates(
-            language: 'en',
             theme: null,
             bypassCache: false,
           )).thenThrow(const NetworkError());
@@ -125,7 +89,6 @@ void main() {
 
     test('handles empty list without error', () async {
       when(() => repo.getTemplates(
-            language: 'en',
             theme: null,
             bypassCache: false,
           )).thenAnswer((_) async => []);
@@ -142,13 +105,11 @@ void main() {
   group('setTheme', () {
     test('re-fetches with new theme and updates state', () async {
       when(() => repo.getTemplates(
-            language: 'en',
             theme: null,
             bypassCache: false,
           )).thenAnswer((_) async => _kTemplates);
 
       when(() => repo.getTemplates(
-            language: 'en',
             theme: 'floral',
             bypassCache: false,
           )).thenAnswer((_) async =>
@@ -166,7 +127,6 @@ void main() {
 
     test('calling setTheme with same value is a no-op', () async {
       when(() => repo.getTemplates(
-            language: 'en',
             theme: null,
             bypassCache: false,
           )).thenAnswer((_) async => _kTemplates);
@@ -176,9 +136,7 @@ void main() {
 
       await c.read(templatesControllerProvider.notifier).setTheme(null);
 
-      // Only the initial call should have been made.
       verify(() => repo.getTemplates(
-            language: 'en',
             theme: null,
             bypassCache: false,
           )).called(1);
@@ -186,24 +144,20 @@ void main() {
 
     test('clears theme filter when null is passed', () async {
       when(() => repo.getTemplates(
-            language: 'en',
             theme: 'floral',
             bypassCache: false,
           )).thenAnswer((_) async =>
               _kTemplates.where((t) => t.theme == 'floral').toList());
 
       when(() => repo.getTemplates(
-            language: 'en',
             theme: null,
             bypassCache: false,
           )).thenAnswer((_) async => _kTemplates);
 
       final c = _makeContainer(repo: repo);
-      // Start with a filter.
       await c.read(templatesControllerProvider.notifier).setTheme('floral');
       await _settle(c);
 
-      // Clear filter.
       await c.read(templatesControllerProvider.notifier).setTheme(null);
       await _settle(c);
 
@@ -216,16 +170,14 @@ void main() {
   group('refresh', () {
     test('bypasses cache and re-fetches', () async {
       when(() => repo.getTemplates(
-            language: 'en',
             theme: null,
             bypassCache: false,
           )).thenAnswer((_) async => _kTemplates);
 
       when(() => repo.getTemplates(
-            language: 'en',
             theme: null,
             bypassCache: true,
-          )).thenAnswer((_) async => [_tpl('4')]); // new data after refresh
+          )).thenAnswer((_) async => [_tpl('4')]);
 
       final c = _makeContainer(repo: repo);
       await _settle(c);
@@ -237,7 +189,6 @@ void main() {
       expect(state.value?.length, 1);
       expect(state.value?.first.id, '4');
       verify(() => repo.getTemplates(
-            language: 'en',
             theme: null,
             bypassCache: true,
           )).called(1);
@@ -247,7 +198,6 @@ void main() {
   group('availableThemes', () {
     test('derives unique sorted themes from loaded templates', () async {
       when(() => repo.getTemplates(
-            language: 'en',
             theme: null,
             bypassCache: false,
           )).thenAnswer((_) async => _kTemplates);
@@ -257,12 +207,11 @@ void main() {
 
       final themes =
           c.read(templatesControllerProvider.notifier).availableThemes;
-      expect(themes, ['floral', 'wedding']); // sorted
+      expect(themes, ['floral', 'wedding']);
     });
 
     test('returns empty list while loading', () async {
       when(() => repo.getTemplates(
-            language: 'en',
             theme: null,
             bypassCache: false,
           )).thenAnswer((_) async {
@@ -271,7 +220,6 @@ void main() {
       });
 
       final c = _makeContainer(repo: repo);
-      // Don't settle — check while still loading.
       expect(
           c.read(templatesControllerProvider.notifier).availableThemes, isEmpty);
     });

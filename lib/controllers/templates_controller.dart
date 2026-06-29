@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../controllers/locale_controller.dart';
 import '../models/template.dart';
 import '../repositories/templates_repository.dart';
 
@@ -14,28 +13,13 @@ final templatesControllerProvider =
 // Controller
 // ---------------------------------------------------------------------------
 class TemplatesController extends AsyncNotifier<List<Template>> {
-  // Theme filter persists across locale changes because the same notifier
-  // instance is reused when build() is re-called due to a watched dependency
-  // changing (Riverpod 2.x behaviour).
   String? _selectedTheme;
 
   String? get selectedTheme => _selectedTheme;
 
   @override
   Future<List<Template>> build() async {
-    // Watching localeControllerProvider means build() is automatically
-    // re-called whenever the user switches language — picks up the new
-    // language for the API call while keeping _selectedTheme intact.
-    final localeAsync = ref.watch(localeControllerProvider);
-
-    // Don't call the API while locale is still loading — build() will
-    // re-fire once it resolves, making a single well-formed request.
-    if (localeAsync.isLoading) return [];
-
-    final language = localeAsync.valueOrNull?.languageCode ?? 'en';
-
     return ref.read(templatesRepositoryProvider).getTemplates(
-          language: language,
           theme: _selectedTheme,
         );
   }
@@ -57,9 +41,7 @@ class TemplatesController extends AsyncNotifier<List<Template>> {
   }
 
   Future<List<Template>> _fetch({required bool bypassCache}) {
-    final language = ref.read(localeControllerProvider).valueOrNull?.languageCode ?? 'en';
     return ref.read(templatesRepositoryProvider).getTemplates(
-          language: language,
           theme: _selectedTheme,
           bypassCache: bypassCache,
         );
