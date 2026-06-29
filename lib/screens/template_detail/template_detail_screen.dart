@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../controllers/credits_controller.dart';
 import '../../controllers/templates_controller.dart';
 import '../../core/constants.dart';
+import '../../core/theme.dart';
 import '../../models/template.dart';
 import '../../repositories/templates_repository.dart';
 import '../../widgets/error_view.dart';
@@ -150,13 +151,46 @@ class _LargePreview extends StatelessWidget {
   const _LargePreview({required this.template});
   final Template template;
 
+  static const _palettes = <String, List<Color>>{
+    'floral':   [Color(0xFFFF9A9E), Color(0xFFFECFEF)],
+    'bridal':   [Color(0xFFE91E8C), Color(0xFFFF6B23)],
+    'wedding':  [Color(0xFFFFD700), Color(0xFFFF6B23)],
+    'royal':    [Color(0xFF6A1B9A), Color(0xFFE91E8C)],
+    'garden':   [Color(0xFF43A047), Color(0xFFAED581)],
+    'birthday': [Color(0xFF42A5F5), Color(0xFFCE93D8)],
+    'business': [Color(0xFF37474F), Color(0xFF78909C)],
+  };
+
   @override
   Widget build(BuildContext context) {
     final key = template.thumbnailKey;
     if (key == null) {
-      return ColoredBox(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Center(child: Icon(Icons.image_outlined, size: 64)),
+      final themeKey = template.theme.toLowerCase();
+      final colors = _palettes[themeKey] ?? [kSaffron, kMagenta];
+      final initial = template.name.isNotEmpty
+          ? template.name[0].toUpperCase()
+          : '?';
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: colors,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            initial,
+            style: const TextStyle(
+              fontSize: 96,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              shadows: [
+                Shadow(color: Colors.black38, blurRadius: 12, offset: Offset(2, 4)),
+              ],
+            ),
+          ),
+        ),
       );
     }
     // Decode at a reasonable preview size — this is a detail image, not a
