@@ -15,6 +15,7 @@ import '../../core/theme.dart';
 import '../../models/template.dart';
 import '../../repositories/templates_repository.dart';
 import '../../widgets/error_view.dart';
+import '../../api/api_error.dart';
 import '../../widgets/insufficient_credits_dialog.dart';
 
 // ---------------------------------------------------------------------------

@@ -20,6 +20,8 @@ Template _tpl(String id, {String theme = 'floral'}) => Template(
       name: 'Template $id',
       language: 'en',
       theme: theme,
+      category: theme,
+      isFeatured: false,
       basePricePaise: 1000,
       assetKeys: ['https://cdn.example.com/$id.jpg'],
     );
