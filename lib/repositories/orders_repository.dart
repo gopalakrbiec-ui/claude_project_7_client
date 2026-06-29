@@ -87,15 +87,36 @@ class OrdersRepository {
   }
 
   /// GET /orders?page=1&limit=20 — paginated list for My Orders tab.
+  /// Returns an empty page if the endpoint doesn't exist yet (404).
   Future<OrderListPage> getOrders({int page = 1, int limit = 20}) async {
     try {
-      final response = await _dio.get<Map<String, dynamic>>(
+      final response = await _dio.get<dynamic>(
         '/orders',
         queryParameters: {'page': page, 'limit': limit},
       );
-      return OrderListPage.fromJson(response.data!);
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return OrderListPage.fromJson(data);
+      }
+      if (data is List) {
+        return OrderListPage(
+          orders: data
+              .map((e) => OrderSummary.fromJson(e as Map<String, dynamic>))
+              .toList(),
+          total: data.length,
+          page: page,
+          limit: limit,
+          hasMore: false,
+        );
+      }
+      return OrderListPage(orders: const [], total: 0, page: page, limit: limit);
     } on DioException catch (e) {
-      throw DioClient.handleDioError(e);
+      final err = DioClient.handleDioError(e);
+      // 404 means the orders list endpoint doesn't exist yet — return empty.
+      if (e.response?.statusCode == 404) {
+        return OrderListPage(orders: const [], total: 0, page: page, limit: limit);
+      }
+      throw err;
     }
   }
 

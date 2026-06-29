@@ -7,7 +7,9 @@ import '../screens/language_select/language_select_screen.dart';
 import '../models/template.dart';
 import '../screens/login/phone_entry_screen.dart';
 import '../screens/login/otp_entry_screen.dart';
+import '../screens/login/signup_screen.dart';
 import '../screens/home/home_screen.dart';
+import '../screens/profile/profile_screen.dart';
 import '../screens/template_detail/template_detail_screen.dart';
 import '../screens/create_order/create_order_screen.dart';
 import '../screens/payment/payment_screen.dart';
@@ -36,14 +38,17 @@ class _RouterNotifier extends ChangeNotifier {
     final isAuthenticated = authState is AuthAuthenticated;
     final loc = state.matchedLocation;
 
-    // 1. Not authenticated → login (allow /login/* sub-routes and language-select)
+    // 1. Not authenticated → login (allow /login/* and /signup and /language-select)
     final onLoginFlow = loc == '/login' || loc.startsWith('/login/');
-    if (!isAuthenticated && !onLoginFlow && loc != '/language-select') {
+    if (!isAuthenticated && !onLoginFlow && loc != '/language-select' && loc != '/signup') {
       return '/login';
     }
 
-    // 2. Authenticated user hits login → home
-    if (isAuthenticated && onLoginFlow) return '/home';
+    // 2. Authenticated user hits login → home or signup for new users
+    if (isAuthenticated && onLoginFlow) {
+      final auth = authState as AuthAuthenticated;
+      return auth.isNewUser ? '/signup' : '/home';
+    }
 
     // 4. Agent-only route guard — consumers get redirected to home
     if (isAuthenticated) {
@@ -74,6 +79,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/language-select',
         builder: (_, __) => const LanguageSelectScreen(),
+      ),
+      GoRoute(
+        path: '/signup',
+        builder: (_, __) => const SignupScreen(),
       ),
 
       // ── Login flow (two-step: phone → OTP) ──────────────────────────────
@@ -145,6 +154,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, state) => ToolWorkScreen(
               toolName: state.pathParameters['tool']!,
             ),
+          ),
+          GoRoute(
+            path: 'profile',
+            builder: (_, __) => const ProfileScreen(),
           ),
         ],
       ),

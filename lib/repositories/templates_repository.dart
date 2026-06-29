@@ -39,7 +39,8 @@ class TemplatesRepository {
   _CacheEntry<List<TemplateCategoryGroup>>? _groupedCache;
   final _flatCache = <String?, _CacheEntry<List<Template>>>{};
 
-  /// Fetches templates grouped by category — primary API for the home screen.
+  /// Fetches templates grouped by category.
+  /// Tries GET /templates/grouped first; falls back to GET /templates + client-side grouping.
   Future<List<TemplateCategoryGroup>> getGroupedTemplates({
     bool bypassCache = false,
   }) async {
@@ -48,21 +49,72 @@ class TemplatesRepository {
       return cached.data;
     }
 
+    // Try grouped endpoint first.
     try {
       final response = await _dio.get<List<dynamic>>('/templates/grouped');
-      final groups = (response.data ?? [])
-          .map((e) => TemplateCategoryGroup.fromJson(e as Map<String, dynamic>))
+      final raw = response.data ?? [];
+      if (raw.isNotEmpty) {
+        final groups = raw
+            .map((e) => TemplateCategoryGroup.fromJson(e as Map<String, dynamic>))
+            .toList();
+        _groupedCache = _CacheEntry(groups);
+        _flatCache[null] = _CacheEntry(groups.expand((g) => g.templates).toList());
+        return groups;
+      }
+    } on DioException catch (_) {
+      // Fall through to flat-list fallback.
+    }
+
+    // Fallback: GET /templates and group client-side.
+    return _getGroupedFromFlat(bypassCache: bypassCache, cached: cached);
+  }
+
+  Future<List<TemplateCategoryGroup>> _getGroupedFromFlat({
+    required bool bypassCache,
+    _CacheEntry<List<TemplateCategoryGroup>>? cached,
+  }) async {
+    try {
+      final response = await _dio.get<List<dynamic>>('/templates');
+      final templates = (response.data ?? [])
+          .map((e) => Template.fromJson(e as Map<String, dynamic>))
+          .toList();
+      _flatCache[null] = _CacheEntry(templates);
+
+      // Group by category, preserving insertion order.
+      final grouped = <String, List<Template>>{};
+      for (final t in templates) {
+        (grouped[t.category] ??= []).add(t);
+      }
+      final groups = grouped.entries
+          .map((e) => TemplateCategoryGroup(
+                category: e.key,
+                label: _categoryLabel(e.key),
+                templates: e.value,
+              ))
           .toList();
       _groupedCache = _CacheEntry(groups);
-      // Also populate the flat cache so detail screens can find by id.
-      _flatCache[null] = _CacheEntry(
-        groups.expand((g) => g.templates).toList(),
-      );
       return groups;
     } on DioException catch (e) {
       if (cached != null) return cached.data;
       throw DioClient.handleDioError(e);
     }
+  }
+
+  static String _categoryLabel(String category) {
+    final labels = <String, String>{
+      'wedding': 'Wedding',
+      'bridal': 'Bridal',
+      'floral': 'Floral',
+      'royal': 'Royal',
+      'garden': 'Garden',
+      'birthday': 'Birthday',
+      'business': 'Business',
+      'bollywood': 'Bollywood',
+      'cricket': 'Cricket',
+      'festival': 'Festival',
+    };
+    return labels[category.toLowerCase()] ??
+        category[0].toUpperCase() + category.substring(1);
   }
 
   /// Flat list — used by the All Templates grid tab.

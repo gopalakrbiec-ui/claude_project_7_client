@@ -2,10 +2,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../controllers/auth_controller.dart';
 import '../../controllers/templates_controller.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
+import '../../core/token_storage.dart';
 import '../../models/order_summary.dart';
 import '../../models/template.dart';
 import '../../repositories/orders_repository.dart';
@@ -15,14 +17,14 @@ import '../../widgets/skeleton_card.dart';
 import '../../widgets/template_card.dart';
 
 // ---------------------------------------------------------------------------
-// My Orders state — simple local provider
+// My Orders provider
 // ---------------------------------------------------------------------------
 final _myOrdersProvider = FutureProvider.autoDispose<OrderListPage>((ref) {
   return ref.read(ordersRepositoryProvider).getOrders();
 });
 
 // ---------------------------------------------------------------------------
-// Root shell — bottom nav
+// Root shell — bottom nav with centre AI FAB
 // ---------------------------------------------------------------------------
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -43,186 +45,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: IndexedStack(
         index: _tab,
         children: [
-          _DiscoverTab(isAgent: isAgent),
-          _AllTemplatesTab(isAgent: isAgent),
-          const _MyOrdersTab(),
+          _HomeTab(isAgent: isAgent),
+          // Tab 1 is the AI button — never shown in IndexedStack; taps open tools directly.
+          const _VideoTab(),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
+      // Centre FAB for AI tools
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.push('/home/tools'),
+        backgroundColor: kSaffron,
+        foregroundColor: Colors.white,
+        elevation: 6,
+        shape: const CircleBorder(),
+        child: const Icon(Icons.auto_awesome, size: 28),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: BottomAppBar(
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8,
         height: 64,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.photo_library_outlined),
-            selectedIcon: Icon(Icons.photo_library),
-            label: 'Templates',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            selectedIcon: Icon(Icons.history),
-            label: 'My Orders',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Discover tab — hero + grouped category rows
-// ---------------------------------------------------------------------------
-class _DiscoverTab extends ConsumerWidget {
-  const _DiscoverTab({required this.isAgent});
-  final bool isAgent;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final groupedAsync = ref.watch(groupedTemplatesProvider);
-    final controller = ref.read(groupedTemplatesProvider.notifier);
-
-    return RefreshIndicator(
-      color: kSaffron,
-      onRefresh: controller.refresh,
-      child: CustomScrollView(
-        slivers: [
-          _HeroBanner(isAgent: isAgent),
-          groupedAsync.when(
-            loading: () => const SliverToBoxAdapter(child: _CategorySkeleton()),
-            error: (e, _) => SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(kSpaceLg),
-                child: ErrorView(
-                  message: 'Could not load templates.',
-                  onRetry: controller.refresh,
-                ),
-              ),
-            ),
-            data: (groups) => _CategoryRows(groups: groups),
-          ),
-          const SliverPadding(padding: EdgeInsets.only(bottom: kSpaceLg)),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Hero banner
-// ---------------------------------------------------------------------------
-class _HeroBanner extends ConsumerWidget {
-  const _HeroBanner({required this.isAgent});
-  final bool isAgent;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final h = MediaQuery.sizeOf(context).height * 0.40;
-
-    return SliverToBoxAdapter(
-      child: SizedBox(
-        height: h,
-        child: Stack(
-          fit: StackFit.expand,
+        child: Row(
           children: [
-            Container(decoration: const BoxDecoration(gradient: kBrandGradient)),
-            Positioned(
-              top: -40, right: -40,
-              child: Container(
-                width: 200, height: 200,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.08),
-                ),
+            // Home
+            Expanded(
+              child: _NavItem(
+                icon: Icons.home_outlined,
+                selectedIcon: Icons.home,
+                label: 'Home',
+                selected: _tab == 0,
+                onTap: () => setState(() => _tab = 0),
               ),
             ),
-            Positioned(
-              bottom: -60, left: -30,
-              child: Container(
-                width: 220, height: 220,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.07),
-                ),
-              ),
-            ),
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: kSpaceLg, vertical: kSpaceMd),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Text(
-                          'Yaadein',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                        const Spacer(),
-                        if (isAgent)
-                          IconButton(
-                            icon: const Icon(Icons.storefront_outlined,
-                                color: Colors.white70),
-                            onPressed: () =>
-                                context.go('/home/agent-earnings'),
-                          ),
-                        const BalanceChip(),
-                      ],
-                    ),
-                    const Spacer(),
-                    const Text(
-                      'AI Posters of\nYour Moments',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: kSpaceSm),
-                    Text(
-                      'Upload your photo • pick a style • done in seconds',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75),
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: kSpaceMd),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Try  ',
-                            style: TextStyle(
-                              color: Color(0xFF1A1A1A),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                            ),
-                          ),
-                          Icon(Icons.auto_awesome, size: 16, color: kSaffron),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: kSpaceMd),
-                  ],
-                ),
+            // Centre spacer for FAB notch
+            const Expanded(child: SizedBox()),
+            // Video
+            Expanded(
+              child: _NavItem(
+                icon: Icons.video_library_outlined,
+                selectedIcon: Icons.video_library,
+                label: 'Video',
+                selected: _tab == 1,
+                onTap: () => setState(() => _tab = 1),
               ),
             ),
           ],
@@ -232,8 +95,167 @@ class _HeroBanner extends ConsumerWidget {
   }
 }
 
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? kSaffron : Theme.of(context).colorScheme.onSurfaceVariant;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(selected ? selectedIcon : icon, color: color, size: 24),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                  color: color, fontSize: 11, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
-// Category rows — uses TemplateCategoryGroup list from grouped API
+// App bar with icon + welcome + profile button
+// ---------------------------------------------------------------------------
+class _HomeAppBar extends ConsumerWidget implements PreferredSizeWidget {
+  const _HomeAppBar({this.isAgent = false});
+  final bool isAgent;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authControllerProvider);
+    final storage = ref.read(tokenStorageProvider);
+
+    String displayName = '';
+    if (authState is AuthAuthenticated) {
+      final firstName = storage.firstName;
+      displayName = authState.profile.name ??
+          (firstName != null && firstName.isNotEmpty
+              ? firstName
+              : authState.profile.phone);
+    }
+
+    return AppBar(
+      titleSpacing: kSpaceSm,
+      title: Row(
+        children: [
+          // Small app icon
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [kSaffron, kMagenta],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.auto_awesome,
+                color: Colors.white, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  displayName.isNotEmpty
+                      ? 'Welcome, $displayName'
+                      : 'Welcome',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        if (isAgent)
+          IconButton(
+            icon: const Icon(Icons.storefront_outlined),
+            onPressed: () => context.push('/home/agent-earnings'),
+          ),
+        const BalanceChip(),
+        IconButton(
+          icon: const Icon(Icons.account_circle_outlined),
+          onPressed: () => context.push('/home/profile'),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Home tab — grouped templates by theme with horizontal scroll
+// ---------------------------------------------------------------------------
+class _HomeTab extends ConsumerWidget {
+  const _HomeTab({required this.isAgent});
+  final bool isAgent;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final groupedAsync = ref.watch(groupedTemplatesProvider);
+    final controller = ref.read(groupedTemplatesProvider.notifier);
+
+    return Scaffold(
+      appBar: _HomeAppBar(isAgent: isAgent),
+      body: RefreshIndicator(
+        color: kSaffron,
+        onRefresh: controller.refresh,
+        child: groupedAsync.when(
+          loading: () => const _CategorySkeleton(),
+          error: (e, _) => SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: SizedBox(
+              height: MediaQuery.sizeOf(context).height * 0.6,
+              child: ErrorView(
+                message: 'Could not load templates.',
+                onRetry: controller.refresh,
+              ),
+            ),
+          ),
+          data: (groups) => groups.isEmpty
+              ? const Center(child: Text('No templates available.'))
+              : _CategoryRows(groups: groups),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Category rows — horizontal scroll per group
 // ---------------------------------------------------------------------------
 class _CategoryRows extends StatelessWidget {
   const _CategoryRows({required this.groups});
@@ -241,12 +263,10 @@ class _CategoryRows extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SliverList.builder(
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: kSpaceSm, bottom: kSpaceXl),
       itemCount: groups.length,
-      itemBuilder: (context, i) {
-        final group = groups[i];
-        return _CategorySection(group: group);
-      },
+      itemBuilder: (context, i) => _CategorySection(group: groups[i]),
     );
   }
 }
@@ -285,8 +305,8 @@ class _CategorySection extends StatelessWidget {
                 Text(
                   '${group.label} $emoji',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
                 const Spacer(),
                 if (group.templates.length > 3)
@@ -302,7 +322,7 @@ class _CategorySection extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        'More >',
+                        'More →',
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontSize: 13,
@@ -347,30 +367,88 @@ class _CategorySkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     final cardW = MediaQuery.sizeOf(context).width * 0.42;
     return SkeletonScope(
-      child: Padding(
-        padding: const EdgeInsets.only(top: kSpaceLg, left: kSpaceMd),
+      child: ListView.builder(
+        padding: const EdgeInsets.only(top: kSpaceLg),
+        itemCount: 3,
+        itemBuilder: (_, __) => Padding(
+          padding: const EdgeInsets.only(bottom: kSpaceLg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: kSpaceMd),
+                child: Container(
+                  width: 140,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+              const SizedBox(height: kSpaceSm),
+              SizedBox(
+                height: cardW * (4 / 3),
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: kSpaceMd),
+                  itemCount: 3,
+                  separatorBuilder: (_, __) => const SizedBox(width: kSpaceSm),
+                  itemBuilder: (_, __) =>
+                      SizedBox(width: cardW, child: const SkeletonCard()),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Video tab — placeholder
+// ---------------------------------------------------------------------------
+class _VideoTab extends StatelessWidget {
+  const _VideoTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Video')),
+      body: Center(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 140,
-              height: 20,
+              width: 88,
+              height: 88,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-            const SizedBox(height: kSpaceSm),
-            SizedBox(
-              height: cardW * (4 / 3),
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: 3,
-                separatorBuilder: (_, __) => const SizedBox(width: kSpaceSm),
-                itemBuilder: (_, __) => SizedBox(
-                  width: cardW,
-                  child: const SkeletonCard(),
+                gradient: const LinearGradient(
+                  colors: [kSaffron, kMagenta],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Icon(Icons.video_library_outlined,
+                  color: Colors.white, size: 44),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Video Generation',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Coming soon! Create beautiful\nvideo memories with AI.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 15,
               ),
             ),
           ],
@@ -381,104 +459,10 @@ class _CategorySkeleton extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// All Templates tab
+// My Orders screen — navigated to from Profile
 // ---------------------------------------------------------------------------
-class _AllTemplatesTab extends ConsumerWidget {
-  const _AllTemplatesTab({required this.isAgent});
-  final bool isAgent;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final controller = ref.read(templatesControllerProvider.notifier);
-    final templatesAsync = ref.watch(templatesControllerProvider);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('All Templates'),
-        actions: [const BalanceChip()],
-      ),
-      body: RefreshIndicator(
-        color: kSaffron,
-        onRefresh: controller.refresh,
-        child: templatesAsync.when(
-          loading: () => const _SkeletonGrid(),
-          error: (e, _) => SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: SizedBox(
-              height: MediaQuery.sizeOf(context).height * 0.7,
-              child: ErrorView(
-                message: 'Could not load templates.',
-                onRetry: controller.refresh,
-              ),
-            ),
-          ),
-          data: (templates) => templates.isEmpty
-              ? const Center(child: Text('No templates available.'))
-              : _TemplateGrid(templates: templates),
-        ),
-      ),
-    );
-  }
-}
-
-class _TemplateGrid extends StatelessWidget {
-  const _TemplateGrid({required this.templates});
-  final List<Template> templates;
-
-  @override
-  Widget build(BuildContext context) {
-    final w = MediaQuery.sizeOf(context).width;
-    final crossAxisCount = w >= 900 ? 4 : w >= 600 ? 3 : 2;
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(kSpaceMd),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        crossAxisSpacing: kSpaceSm,
-        mainAxisSpacing: kSpaceSm,
-        childAspectRatio: 3 / 4,
-      ),
-      itemCount: templates.length,
-      itemBuilder: (context, i) {
-        final t = templates[i];
-        return TemplateCard(
-          template: t,
-          isHot: t.isFeatured,
-          onTap: () => context.go('/home/template/${t.id}', extra: t),
-        );
-      },
-    );
-  }
-}
-
-class _SkeletonGrid extends StatelessWidget {
-  const _SkeletonGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    final crossAxisCount = MediaQuery.sizeOf(context).width >= 600 ? 3 : 2;
-    return SkeletonScope(
-      child: GridView.builder(
-        padding: const EdgeInsets.all(kSpaceMd),
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxisCount,
-          crossAxisSpacing: kSpaceSm,
-          mainAxisSpacing: kSpaceSm,
-          childAspectRatio: 3 / 4,
-        ),
-        itemCount: 6,
-        itemBuilder: (_, __) => const SkeletonCard(),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// My Orders tab — paginated list, tap to view order status
-// ---------------------------------------------------------------------------
-class _MyOrdersTab extends ConsumerWidget {
-  const _MyOrdersTab();
+class MyOrdersScreen extends ConsumerWidget {
+  const MyOrdersScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -517,23 +501,21 @@ class _EmptyOrders extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.inbox_outlined,
-            size: 72,
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
+          Icon(Icons.inbox_outlined,
+              size: 72,
+              color: Theme.of(context).colorScheme.outlineVariant),
           const SizedBox(height: kSpaceMd),
-          Text(
-            'No orders yet',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 18),
-          ),
+          Text('No orders yet',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontSize: 18)),
           const SizedBox(height: kSpaceSm),
           Text(
             'Your generated posters will appear here.',
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontSize: 14,
-            ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 14),
             textAlign: TextAlign.center,
           ),
         ],
@@ -579,7 +561,6 @@ class _OrderCard extends StatelessWidget {
           padding: const EdgeInsets.all(kSpaceMd),
           child: Row(
             children: [
-              // Thumbnail
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: SizedBox(
@@ -589,23 +570,20 @@ class _OrderCard extends StatelessWidget {
                       ? CachedNetworkImage(
                           imageUrl: order.resultUrl!,
                           fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) =>
-                              const _FallbackThumb(),
+                          errorWidget: (_, __, ___) => const _FallbackThumb(),
                         )
                       : const _FallbackThumb(),
                 ),
               ),
               const SizedBox(width: kSpaceMd),
-              // Details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       order.templateName ?? 'Poster',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -622,18 +600,16 @@ class _OrderCard extends StatelessWidget {
                           child: Text(
                             order.statusLabel,
                             style: TextStyle(
-                              color: statusColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
+                                color: statusColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           order.priceDisplay,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                              color: theme.colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
@@ -642,9 +618,8 @@ class _OrderCard extends StatelessWidget {
                       Text(
                         _formatDate(order.createdAt!),
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 11,
-                        ),
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontSize: 11),
                       ),
                     ],
                   ],
@@ -660,8 +635,7 @@ class _OrderCard extends StatelessWidget {
   }
 
   String _formatDate(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
+    final diff = DateTime.now().difference(dt);
     if (diff.inDays == 0) return 'Today';
     if (diff.inDays == 1) return 'Yesterday';
     if (diff.inDays < 7) return '${diff.inDays} days ago';
