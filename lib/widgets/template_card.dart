@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
+import '../core/theme.dart';
 import '../models/template.dart';
 
 class TemplateCard extends StatelessWidget {
@@ -27,7 +28,11 @@ class TemplateCard extends StatelessWidget {
           children: [
             Expanded(
               flex: 3,
-              child: _Thumbnail(assetKey: template.thumbnailKey),
+              child: _Thumbnail(
+                assetKey: template.thumbnailKey,
+                templateName: template.name,
+                theme: template.theme,
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -68,33 +73,76 @@ class TemplateCard extends StatelessWidget {
 }
 
 class _Thumbnail extends StatelessWidget {
-  const _Thumbnail({required this.assetKey});
+  const _Thumbnail({
+    required this.assetKey,
+    required this.templateName,
+    required this.theme,
+  });
   final String? assetKey;
+  final String templateName;
+  final String theme;
 
   @override
   Widget build(BuildContext context) {
     if (assetKey == null || assetKey!.isEmpty) {
-      return ColoredBox(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Center(child: Icon(Icons.image_outlined, size: 40)),
-      );
+      return _PlaceholderTile(name: templateName, theme: theme);
     }
 
-    // asset_keys may be full URLs or bare keys; treat as URL directly.
     return CachedNetworkImage(
       imageUrl: assetKey!,
       fit: BoxFit.cover,
-      // Decode at thumbnail size — avoids holding full-res bitmaps in RAM for
-      // a grid of small cards.  300 px covers ~2× a 150-dp card at 1× density.
       memCacheWidth: 300,
       memCacheHeight: 400,
       placeholder: (_, __) => ColoredBox(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
       ),
-      errorWidget: (_, __, ___) => ColoredBox(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Center(
-          child: Icon(Icons.broken_image_outlined, size: 40),
+      errorWidget: (_, __, ___) => _PlaceholderTile(
+        name: templateName,
+        theme: theme,
+      ),
+    );
+  }
+}
+
+// Shown when no image URL is available yet — gradient + initials.
+class _PlaceholderTile extends StatelessWidget {
+  const _PlaceholderTile({required this.name, required this.theme});
+  final String name;
+  final String theme;
+
+  // Deterministic gradient per theme so each category has a consistent colour.
+  static const _palettes = <String, List<Color>>{
+    'floral':   [Color(0xFFFF9A9E), Color(0xFFFECFEF)],
+    'bridal':   [Color(0xFFE91E8C), Color(0xFFFF6B23)],
+    'wedding':  [Color(0xFFFFD700), Color(0xFFFF6B23)],
+    'royal':    [Color(0xFF6A1B9A), Color(0xFFE91E8C)],
+    'garden':   [Color(0xFF43A047), Color(0xFFAED581)],
+    'birthday': [Color(0xFF42A5F5), Color(0xFFCE93D8)],
+    'business': [Color(0xFF37474F), Color(0xFF78909C)],
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = _palettes[theme.toLowerCase()] ?? [kSaffron, kMagenta];
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '✦';
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: colors,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          initial,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 48,
+            fontWeight: FontWeight.w700,
+            shadows: [Shadow(blurRadius: 8, color: Colors.black26)],
+          ),
         ),
       ),
     );
