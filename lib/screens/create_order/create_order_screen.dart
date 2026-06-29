@@ -15,6 +15,7 @@ import '../../core/theme.dart';
 import '../../models/template.dart';
 import '../../repositories/templates_repository.dart';
 import '../../widgets/error_view.dart';
+import '../../widgets/insufficient_credits_dialog.dart';
 
 // ---------------------------------------------------------------------------
 // Entry — resolves template then delegates to content widget
@@ -114,9 +115,17 @@ class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
     final isAgent = ref.watch(isAgentProvider);
     final theme = Theme.of(context);
 
-    ref.listen(createOrderControllerProvider(widget.template.id), (_, next) {
+    ref.listen(createOrderControllerProvider(widget.template.id), (prev, next) {
       if (next.isSuccess && next.createdOrder != null) {
         context.go('/home/order-status/${next.createdOrder!.id}');
+      }
+      // Show the rich Top Up dialog on 402 instead of a plain banner.
+      if (next.isInsufficientCredits &&
+          prev?.isInsufficientCredits != true) {
+        InsufficientCreditsDialog.show(
+          context,
+          const InsufficientCreditsError(availablePaise: 0, requiredPaise: 0),
+        );
       }
     });
 

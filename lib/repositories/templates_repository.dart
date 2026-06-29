@@ -7,13 +7,12 @@ import '../core/constants.dart';
 import '../models/template.dart';
 
 // ---------------------------------------------------------------------------
-// In-memory TTL cache
+// Cache entry
 // ---------------------------------------------------------------------------
-class _CacheEntry {
+class _CacheEntry<T> {
   _CacheEntry(this.data) : cachedAt = DateTime.now();
-  final List<Template> data;
+  final T data;
   final DateTime cachedAt;
-
   bool get isStale =>
       DateTime.now().difference(cachedAt) > kTemplateCacheTtl;
 }
@@ -37,17 +36,47 @@ class TemplatesRepository {
   TemplatesRepository(this._dio);
   final Dio _dio;
 
-  // Keyed by optional theme filter — language is no longer sent to the API.
-  final _cache = <String?, _CacheEntry>{};
+  _CacheEntry<List<TemplateCategoryGroup>>? _groupedCache;
+  final _flatCache = <String?, _CacheEntry<List<Template>>>{};
 
-  /// Fetches all templates, optionally filtered by [theme].
-  /// Returns cached data if fresh; set [bypassCache] to force a network call.
+  /// Fetches templates grouped by category — primary API for the home screen.
+  Future<List<TemplateCategoryGroup>> getGroupedTemplates({
+    bool bypassCache = false,
+  }) async {
+    final cached = _groupedCache;
+    if (!bypassCache && cached != null && !cached.isStale) {
+      return cached.data;
+    }
+
+    try {
+      final response = await _dio.get<List<dynamic>>('/templates/grouped');
+      final groups = (response.data ?? [])
+          .map((e) => TemplateCategoryGroup.fromJson(e as Map<String, dynamic>))
+          .toList();
+      _groupedCache = _CacheEntry(groups);
+      // Also populate the flat cache so detail screens can find by id.
+      _flatCache[null] = _CacheEntry(
+        groups.expand((g) => g.templates).toList(),
+      );
+      return groups;
+    } on DioException catch (e) {
+      if (cached != null) return cached.data;
+      throw DioClient.handleDioError(e);
+    }
+  }
+
+  /// Flat list — used by the All Templates grid tab.
   Future<List<Template>> getTemplates({
     String? theme,
     bool bypassCache = false,
   }) async {
-    final cached = _cache[theme];
+    // If we already have grouped data, derive flat list from it.
+    if (!bypassCache && _groupedCache != null && !_groupedCache!.isStale) {
+      final all = _groupedCache!.data.expand((g) => g.templates).toList();
+      return theme == null ? all : all.where((t) => t.category == theme).toList();
+    }
 
+    final cached = _flatCache[theme];
     if (!bypassCache && cached != null && !cached.isStale) {
       return cached.data;
     }
@@ -60,28 +89,36 @@ class TemplatesRepository {
         '/templates',
         queryParameters: params.isEmpty ? null : params,
       );
-
       final templates = (response.data ?? [])
           .map((e) => Template.fromJson(e as Map<String, dynamic>))
           .toList();
-
-      _cache[theme] = _CacheEntry(templates);
+      _flatCache[theme] = _CacheEntry(templates);
       return templates;
     } on DioException catch (e) {
-      // On network error, return stale cache rather than showing an error.
       if (cached != null) return cached.data;
       throw DioClient.handleDioError(e);
     }
   }
 
-  /// Returns a single template from cache, or null if not cached.
+  /// Looks up a single template by id from any cached data.
   Template? getCached(String id) {
-    for (final entry in _cache.values) {
+    // Check grouped cache first.
+    if (_groupedCache != null) {
+      for (final group in _groupedCache!.data) {
+        for (final t in group.templates) {
+          if (t.id == id) return t;
+        }
+      }
+    }
+    for (final entry in _flatCache.values) {
       final match = entry.data.where((t) => t.id == id);
       if (match.isNotEmpty) return match.first;
     }
     return null;
   }
 
-  void invalidateAll() => _cache.clear();
+  void invalidateAll() {
+    _groupedCache = null;
+    _flatCache.clear();
+  }
 }

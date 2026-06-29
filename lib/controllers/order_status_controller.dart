@@ -157,13 +157,10 @@ class OrderStatusController
           .read(ordersRepositoryProvider)
           .removeWatermark(_orderId);
       state = state.copyWith(phase: OrderPhase.done, cleanUrl: cleanUrl);
+    } on InsufficientCreditsError catch (_) {
+      state = state.copyWith(phase: OrderPhase.done, needsTopup: true);
     } on ServerError catch (e) {
-      if (e.isInsufficientCredits) {
-        state = state.copyWith(phase: OrderPhase.done, needsTopup: true);
-      } else {
-        state = state.copyWith(
-            phase: OrderPhase.done, errorMessage: e.message);
-      }
+      state = state.copyWith(phase: OrderPhase.done, errorMessage: e.message);
     } on NetworkError {
       state = state.copyWith(
           phase: OrderPhase.done,

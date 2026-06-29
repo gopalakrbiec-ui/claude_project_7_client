@@ -4,6 +4,30 @@ sealed class ApiError {
   const ApiError();
 }
 
+/// 402 Payment Required — not enough credits.
+/// Carries the raw paise values so the UI can show "you have ₹X, need ₹Y".
+final class InsufficientCreditsError extends ApiError {
+  const InsufficientCreditsError({
+    required this.availablePaise,
+    required this.requiredPaise,
+  });
+  final int availablePaise;
+  final int requiredPaise;
+
+  String get availableDisplay {
+    final r = availablePaise / 100;
+    return r == r.truncateToDouble() ? '₹${r.toInt()}' : '₹${r.toStringAsFixed(2)}';
+  }
+
+  String get requiredDisplay {
+    final r = requiredPaise / 100;
+    return r == r.truncateToDouble() ? '₹${r.toInt()}' : '₹${r.toStringAsFixed(2)}';
+  }
+
+  @override
+  String toString() => 'InsufficientCreditsError(have $availablePaise, need $requiredPaise)';
+}
+
 /// 4xx/5xx response with a body we could parse.
 final class ServerError extends ApiError {
   const ServerError({required this.statusCode, required this.message});
@@ -11,7 +35,6 @@ final class ServerError extends ApiError {
   final String message;
 
   bool get isUnauthorised => statusCode == 401;
-  bool get isInsufficientCredits => statusCode == 402;
   bool get isConflict => statusCode == 409;
 
   @override

@@ -184,19 +184,18 @@ class CreateOrderController
         status: CreateOrderStatus.success,
         createdOrder: order,
       );
+    } on InsufficientCreditsError catch (_) {
+      dev.log('[CreateOrder] InsufficientCreditsError', name: 'order');
+      state = state.copyWith(
+        status: CreateOrderStatus.error,
+        isInsufficientCredits: true,
+      );
     } on ServerError catch (e) {
       dev.log('[CreateOrder] ServerError ${e.statusCode}: ${e.message}', name: 'order');
-      if (e.isInsufficientCredits) {
-        state = state.copyWith(
-          status: CreateOrderStatus.error,
-          isInsufficientCredits: true,
-        );
-      } else {
-        state = state.copyWith(
-          status: CreateOrderStatus.error,
-          errorMessage: e.message,
-        );
-      }
+      state = state.copyWith(
+        status: CreateOrderStatus.error,
+        errorMessage: e.message,
+      );
     } on NetworkError {
       dev.log('[CreateOrder] NetworkError', name: 'order');
       state = state.copyWith(

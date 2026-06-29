@@ -36,6 +36,15 @@ class DioClient {
     final response = e.response;
     if (response != null) {
       final body = response.data;
+
+      // 402 insufficient_balance — parse available/required paise.
+      if (response.statusCode == 402 && body is Map) {
+        return InsufficientCreditsError(
+          availablePaise: (body['available_paise'] as num?)?.toInt() ?? 0,
+          requiredPaise: (body['required_paise'] as num?)?.toInt() ?? 0,
+        );
+      }
+
       String message = 'Request failed (${response.statusCode})';
       if (body is Map && body['detail'] != null) {
         final detail = body['detail'];
@@ -45,6 +54,8 @@ class DioClient {
         } else {
           message = detail.toString();
         }
+      } else if (body is Map && body['error'] != null) {
+        message = body['error'].toString();
       }
       return ServerError(statusCode: response.statusCode ?? 0, message: message);
     }

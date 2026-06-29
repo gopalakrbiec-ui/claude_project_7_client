@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,12 +6,24 @@ import '../../controllers/auth_controller.dart';
 import '../../controllers/templates_controller.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
+import '../../models/order_summary.dart';
 import '../../models/template.dart';
+import '../../repositories/orders_repository.dart';
 import '../../widgets/balance_chip.dart';
 import '../../widgets/error_view.dart';
 import '../../widgets/skeleton_card.dart';
 import '../../widgets/template_card.dart';
 
+// ---------------------------------------------------------------------------
+// My Orders state — simple local provider
+// ---------------------------------------------------------------------------
+final _myOrdersProvider = FutureProvider.autoDispose<OrderListPage>((ref) {
+  return ref.read(ordersRepositoryProvider).getOrders();
+});
+
+// ---------------------------------------------------------------------------
+// Root shell — bottom nav
+// ---------------------------------------------------------------------------
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -62,7 +75,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 // ---------------------------------------------------------------------------
-// Discover tab — hero banner + grouped category rows
+// Discover tab — hero + grouped category rows
 // ---------------------------------------------------------------------------
 class _DiscoverTab extends ConsumerWidget {
   const _DiscoverTab({required this.isAgent});
@@ -70,8 +83,8 @@ class _DiscoverTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final templatesAsync = ref.watch(templatesControllerProvider);
-    final controller = ref.read(templatesControllerProvider.notifier);
+    final groupedAsync = ref.watch(groupedTemplatesProvider);
+    final controller = ref.read(groupedTemplatesProvider.notifier);
 
     return RefreshIndicator(
       color: kSaffron,
@@ -79,7 +92,7 @@ class _DiscoverTab extends ConsumerWidget {
       child: CustomScrollView(
         slivers: [
           _HeroBanner(isAgent: isAgent),
-          templatesAsync.when(
+          groupedAsync.when(
             loading: () => const SliverToBoxAdapter(child: _CategorySkeleton()),
             error: (e, _) => SliverToBoxAdapter(
               child: Padding(
@@ -90,7 +103,7 @@ class _DiscoverTab extends ConsumerWidget {
                 ),
               ),
             ),
-            data: (templates) => _CategoryRows(templates: templates),
+            data: (groups) => _CategoryRows(groups: groups),
           ),
           const SliverPadding(padding: EdgeInsets.only(bottom: kSpaceLg)),
         ],
@@ -109,7 +122,6 @@ class _HeroBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final h = MediaQuery.sizeOf(context).height * 0.40;
-    final authState = ref.watch(authControllerProvider);
 
     return SliverToBoxAdapter(
       child: SizedBox(
@@ -117,11 +129,7 @@ class _HeroBanner extends ConsumerWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Background — brand gradient (same saffron→magenta used in splash)
-            Container(
-              decoration: const BoxDecoration(gradient: kBrandGradient),
-            ),
-            // Decorative sparkle circles
+            Container(decoration: const BoxDecoration(gradient: kBrandGradient)),
             Positioned(
               top: -40, right: -40,
               child: Container(
@@ -142,17 +150,13 @@ class _HeroBanner extends ConsumerWidget {
                 ),
               ),
             ),
-            // Content
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: kSpaceLg,
-                  vertical: kSpaceMd,
-                ),
+                  horizontal: kSpaceLg, vertical: kSpaceMd),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Top bar: app name + actions
                     Row(
                       children: [
                         const Text(
@@ -162,7 +166,6 @@ class _HeroBanner extends ConsumerWidget {
                             fontSize: 28,
                             fontWeight: FontWeight.w800,
                             fontStyle: FontStyle.italic,
-                            letterSpacing: 0.5,
                           ),
                         ),
                         const Spacer(),
@@ -170,13 +173,13 @@ class _HeroBanner extends ConsumerWidget {
                           IconButton(
                             icon: const Icon(Icons.storefront_outlined,
                                 color: Colors.white70),
-                            onPressed: () => context.go('/home/agent-earnings'),
+                            onPressed: () =>
+                                context.go('/home/agent-earnings'),
                           ),
                         const BalanceChip(),
                       ],
                     ),
                     const Spacer(),
-                    // Headline
                     const Text(
                       'AI Posters of\nYour Moments',
                       style: TextStyle(
@@ -190,40 +193,31 @@ class _HeroBanner extends ConsumerWidget {
                     Text(
                       'Upload your photo • pick a style • done in seconds',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
+                        color: Colors.white.withValues(alpha: 0.75),
                         fontSize: 13,
                       ),
                     ),
                     const SizedBox(height: kSpaceMd),
-                    // CTA button
-                    GestureDetector(
-                      onTap: () {
-                        // Navigate to the All Templates tab by triggering rebuild
-                        // The parent IndexedStack handles it via bottom nav;
-                        // here we scroll to first template category instead.
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
+                    Container(
+                      padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Try  ',
-                              style: TextStyle(
-                                color: Color(0xFF1A1A1A),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                              ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Try  ',
+                            style: TextStyle(
+                              color: Color(0xFF1A1A1A),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
                             ),
-                            Icon(Icons.auto_awesome,
-                                size: 16, color: kSaffron),
-                          ],
-                        ),
+                          ),
+                          Icon(Icons.auto_awesome, size: 16, color: kSaffron),
+                        ],
                       ),
                     ),
                     const SizedBox(height: kSpaceMd),
@@ -239,50 +233,44 @@ class _HeroBanner extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Category rows
+// Category rows — uses TemplateCategoryGroup list from grouped API
 // ---------------------------------------------------------------------------
 class _CategoryRows extends StatelessWidget {
-  const _CategoryRows({required this.templates});
-  final List<Template> templates;
+  const _CategoryRows({required this.groups});
+  final List<TemplateCategoryGroup> groups;
 
   @override
   Widget build(BuildContext context) {
-    // Group templates by theme, preserving insertion order.
-    final groups = <String, List<Template>>{};
-    for (final t in templates) {
-      groups.putIfAbsent(t.theme, () => []).add(t);
-    }
-
     return SliverList.builder(
       itemCount: groups.length,
       itemBuilder: (context, i) {
-        final theme = groups.keys.elementAt(i);
-        final items = groups[theme]!;
-        return _CategorySection(theme: theme, items: items);
+        final group = groups[i];
+        return _CategorySection(group: group);
       },
     );
   }
 }
 
 class _CategorySection extends StatelessWidget {
-  const _CategorySection({required this.theme, required this.items});
-  final String theme;
-  final List<Template> items;
+  const _CategorySection({required this.group});
+  final TemplateCategoryGroup group;
 
   static const _themeEmoji = <String, String>{
-    'wedding':  '💍',
-    'bridal':   '👰',
-    'floral':   '🌸',
-    'royal':    '👑',
-    'garden':   '🌿',
-    'birthday': '🎂',
-    'business': '💼',
+    'wedding':    '💍',
+    'bridal':     '👰',
+    'floral':     '🌸',
+    'royal':      '👑',
+    'garden':     '🌿',
+    'birthday':   '🎂',
+    'business':   '💼',
+    'bollywood':  '🎬',
+    'cricket':    '🏏',
+    'festival':   '🪔',
   };
 
   @override
   Widget build(BuildContext context) {
-    final label = theme[0].toUpperCase() + theme.substring(1);
-    final emoji = _themeEmoji[theme.toLowerCase()] ?? '✦';
+    final emoji = _themeEmoji[group.category.toLowerCase()] ?? '✦';
     final cardW = MediaQuery.sizeOf(context).width * 0.42;
 
     return Padding(
@@ -290,21 +278,18 @@ class _CategorySection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: kSpaceMd),
             child: Row(
               children: [
                 Text(
-                  '$label $emoji',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 18,
+                  '${group.label} $emoji',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const Spacer(),
-                if (items.length > 3)
+                if (group.templates.length > 3)
                   GestureDetector(
                     onTap: () {},
                     child: Container(
@@ -329,21 +314,20 @@ class _CategorySection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: kSpaceSm),
-          // Horizontal scroll row
           SizedBox(
             height: cardW * (4 / 3),
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: kSpaceMd),
-              itemCount: items.length,
+              itemCount: group.templates.length,
               separatorBuilder: (_, __) => const SizedBox(width: kSpaceSm),
               itemBuilder: (ctx, idx) {
-                final t = items[idx];
+                final t = group.templates[idx];
                 return SizedBox(
                   width: cardW,
                   child: TemplateCard(
                     template: t,
-                    isHot: idx < 2,
+                    isHot: t.isFeatured,
                     onTap: () => ctx.go('/home/template/${t.id}', extra: t),
                   ),
                 );
@@ -397,7 +381,7 @@ class _CategorySkeleton extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// All Templates tab — full grid
+// All Templates tab
 // ---------------------------------------------------------------------------
 class _AllTemplatesTab extends ConsumerWidget {
   const _AllTemplatesTab({required this.isAgent});
@@ -459,7 +443,7 @@ class _TemplateGrid extends StatelessWidget {
         final t = templates[i];
         return TemplateCard(
           template: t,
-          isHot: i < 4,
+          isHot: t.isFeatured,
           onTap: () => context.go('/home/template/${t.id}', extra: t),
         );
       },
@@ -491,42 +475,209 @@ class _SkeletonGrid extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// My Orders tab — placeholder (order history)
+// My Orders tab — paginated list, tap to view order status
 // ---------------------------------------------------------------------------
-class _MyOrdersTab extends StatelessWidget {
+class _MyOrdersTab extends ConsumerWidget {
   const _MyOrdersTab();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ordersAsync = ref.watch(_myOrdersProvider);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('My Orders')),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.inbox_outlined,
-              size: 72,
-              color: Theme.of(context).colorScheme.outlineVariant,
-            ),
-            const SizedBox(height: kSpaceMd),
-            Text(
-              'No orders yet',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontSize: 18,
-              ),
-            ),
-            const SizedBox(height: kSpaceSm),
-            Text(
-              'Your generated posters will appear here.',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: 14,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
+      appBar: AppBar(
+        title: const Text('My Orders'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => ref.invalidate(_myOrdersProvider),
+          ),
+        ],
+      ),
+      body: ordersAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(
+          child: ErrorView(
+            message: 'Could not load orders.',
+            onRetry: () => ref.invalidate(_myOrdersProvider),
+          ),
         ),
+        data: (page) => page.orders.isEmpty
+            ? _EmptyOrders()
+            : _OrdersList(page: page),
+      ),
+    );
+  }
+}
+
+class _EmptyOrders extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.inbox_outlined,
+            size: 72,
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+          const SizedBox(height: kSpaceMd),
+          Text(
+            'No orders yet',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 18),
+          ),
+          const SizedBox(height: kSpaceSm),
+          Text(
+            'Your generated posters will appear here.',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrdersList extends StatelessWidget {
+  const _OrdersList({required this.page});
+  final OrderListPage page;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(kSpaceMd),
+      itemCount: page.orders.length,
+      separatorBuilder: (_, __) => const SizedBox(height: kSpaceSm),
+      itemBuilder: (ctx, i) => _OrderCard(order: page.orders[i]),
+    );
+  }
+}
+
+class _OrderCard extends StatelessWidget {
+  const _OrderCard({required this.order});
+  final OrderSummary order;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final statusColor = order.isDone
+        ? Colors.green
+        : order.isFailed
+            ? theme.colorScheme.error
+            : kSaffron;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => context.push('/home/order-status/${order.id}'),
+        child: Padding(
+          padding: const EdgeInsets.all(kSpaceMd),
+          child: Row(
+            children: [
+              // Thumbnail
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  width: 60,
+                  height: 80,
+                  child: order.resultUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: order.resultUrl!,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) =>
+                              const _FallbackThumb(),
+                        )
+                      : const _FallbackThumb(),
+                ),
+              ),
+              const SizedBox(width: kSpaceMd),
+              // Details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order.templateName ?? 'Poster',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            order.statusLabel,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          order.priceDisplay,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (order.createdAt != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatDate(order.createdAt!),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right,
+                  color: theme.colorScheme.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inDays == 0) return 'Today';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays} days ago';
+    return '${dt.day}/${dt.month}/${dt.year}';
+  }
+}
+
+class _FallbackThumb extends StatelessWidget {
+  const _FallbackThumb();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: const Center(
+        child: Icon(Icons.image_outlined, size: 28, color: Colors.white54),
       ),
     );
   }

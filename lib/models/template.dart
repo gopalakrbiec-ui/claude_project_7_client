@@ -1,31 +1,36 @@
-/// Mirror of GET /templates[] item schema.
-/// Replace with generated model once `make gen-api` has run.
+/// Mirror of TemplateOut from GET /templates/grouped.
 class Template {
   const Template({
     required this.id,
     required this.name,
     required this.language,
     required this.theme,
+    required this.category,
     required this.basePricePaise,
     required this.assetKeys,
+    required this.isFeatured,
+    this.label,
+    this.imageUrl,
     this.previewUrl,
   });
 
   final String id;
   final String name;
-  final String language; // "en" | "hi" | "te"
-  final String theme; // "floral", "wedding", "birthday", …
-  /// Raw paise — use for logic (e.g. affordability check) only.
-  final int basePricePaise;
-  /// Ordered list of CDN asset keys / URLs for this template.
-  final List<String> assetKeys;
-  /// Direct CDN URL for the grid thumbnail — preferred over assetKeys.first.
+  final String language;
+  final String theme;
+  final String category;
+  final bool isFeatured;
+
+  /// Human-readable section header (e.g. "Cricket Glory"). Falls back to category.
+  final String? label;
+
+  /// Convenience CDN URL — same as assetKeys[0] per backend spec.
+  final String? imageUrl;
   final String? previewUrl;
 
-  /// Pre-formatted display price — derived from basePricePaise by formatting
-  /// here since the backend does NOT return a price_display for templates
-  /// (only for orders). Use Rupee symbol + paise-to-rupee conversion for
-  /// display; the backend is still the source of truth for the raw value.
+  final int basePricePaise;
+  final List<String> assetKeys;
+
   String get priceDisplay {
     final rupees = basePricePaise / 100;
     return rupees == rupees.truncateToDouble()
@@ -33,33 +38,58 @@ class Template {
         : '₹${rupees.toStringAsFixed(2)}';
   }
 
-  /// Thumbnail URL: previewUrl if available, else first asset key.
+  /// Best available thumbnail: imageUrl → previewUrl → first assetKey.
   String? get thumbnailKey =>
-      previewUrl ?? (assetKeys.isEmpty ? null : assetKeys.first);
+      imageUrl ?? previewUrl ?? (assetKeys.isEmpty ? null : assetKeys.first);
 
   factory Template.fromJson(Map<String, dynamic> json) {
-    // asset_keys may be an empty map {} (backend quirk) or a proper list [].
     final rawKeys = json['asset_keys'];
     final assetKeys = rawKeys is List
         ? rawKeys.map((e) => e.toString()).toList()
         : <String>[];
 
     return Template(
-      // id may come as int or string depending on backend serialiser.
       id: json['id'].toString(),
       name: json['name'] as String,
       language: (json['language'] as String?) ?? '',
-      theme: json['theme'] as String,
-      basePricePaise: json['base_price_paise'] as int,
-      assetKeys: assetKeys,
+      theme: (json['theme'] as String?) ?? '',
+      category: (json['category'] as String?) ?? (json['theme'] as String?) ?? '',
+      isFeatured: (json['is_featured'] as bool?) ?? false,
+      label: json['label'] as String?,
+      imageUrl: json['image_url'] as String?,
       previewUrl: json['preview_url'] as String?,
+      basePricePaise: (json['base_price_paise'] as num).toInt(),
+      assetKeys: assetKeys,
     );
   }
 
   @override
-  bool operator ==(Object other) =>
-      other is Template && other.id == id;
+  bool operator ==(Object other) => other is Template && other.id == id;
 
   @override
   int get hashCode => id.hashCode;
+}
+
+/// Mirror of TemplateCategoryGroup from GET /templates/grouped.
+class TemplateCategoryGroup {
+  const TemplateCategoryGroup({
+    required this.category,
+    required this.label,
+    required this.templates,
+  });
+
+  final String category;
+  final String label;
+  final List<Template> templates;
+
+  factory TemplateCategoryGroup.fromJson(Map<String, dynamic> json) {
+    final rawTemplates = json['templates'] as List<dynamic>? ?? [];
+    return TemplateCategoryGroup(
+      category: json['category'] as String,
+      label: json['label'] as String,
+      templates: rawTemplates
+          .map((e) => Template.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
 }

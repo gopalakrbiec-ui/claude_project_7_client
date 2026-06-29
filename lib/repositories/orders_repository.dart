@@ -6,6 +6,7 @@ import '../api/dio_client.dart';
 import '../controllers/auth_controller.dart';
 import '../core/token_storage.dart';
 import '../models/order.dart';
+import '../models/order_summary.dart';
 
 final ordersRepositoryProvider = Provider<OrdersRepository>((ref) {
   final storage = ref.read(tokenStorageProvider);
@@ -22,7 +23,7 @@ class CreateOrderParams {
     required this.idempotencyKey,
     this.userPhotoKey,
     this.userPrompt,
-    this.aspectRatio = '1:1',
+    this.aspectRatio = '9:16',
     this.customerPhone,
   });
 
@@ -65,13 +66,13 @@ class OrdersRepository {
     dev.log('[OrdersRepo] POST /orders — templateId=${params.templateId} key=${params.idempotencyKey}', name: 'order');
     try {
       final response = await _dio.post<Map<String, dynamic>>('/orders', data: {
-        'template_id': params.templateId,
+        'template_id': int.tryParse(params.templateId) ?? params.templateId,
         'idempotency_key': params.idempotencyKey,
+        if (params.userPhotoKey != null) 'user_photo_key': params.userPhotoKey,
+        if (params.userPrompt != null && params.userPrompt!.isNotEmpty)
+          'user_prompt': params.userPrompt,
+        'aspect_ratio': params.aspectRatio,
         'input_payload': {
-          if (params.userPhotoKey != null) 'user_photo_key': params.userPhotoKey,
-          if (params.userPrompt != null && params.userPrompt!.isNotEmpty)
-            'user_prompt': params.userPrompt,
-          'aspect_ratio': params.aspectRatio,
           if (params.customerPhone != null && params.customerPhone!.isNotEmpty)
             'customer_phone': params.customerPhone,
         },
@@ -81,6 +82,19 @@ class OrdersRepository {
       return Order.fromJson(response.data!);
     } on DioException catch (e) {
       dev.log('[OrdersRepo] DioException: ${e.type} ${e.response?.statusCode} ${e.response?.data}', name: 'order');
+      throw DioClient.handleDioError(e);
+    }
+  }
+
+  /// GET /orders?page=1&limit=20 — paginated list for My Orders tab.
+  Future<OrderListPage> getOrders({int page = 1, int limit = 20}) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/orders',
+        queryParameters: {'page': page, 'limit': limit},
+      );
+      return OrderListPage.fromJson(response.data!);
+    } on DioException catch (e) {
       throw DioClient.handleDioError(e);
     }
   }
