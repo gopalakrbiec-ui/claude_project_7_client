@@ -55,9 +55,13 @@ ProviderContainer _makeContainer({
 }
 
 /// Pumps the event loop until the auth controller is no longer initializing.
-Future<void> _settle(ProviderContainer c) async {
+Future<void> _settle(ProviderContainer c) => _settleUntil(c, (s) => s is! AuthInitializing);
+
+/// Pumps the event loop until [pred] returns true or 100 iterations pass.
+Future<void> _settleUntil(ProviderContainer c, bool Function(AuthState) pred) async {
   await Future<void>.delayed(Duration.zero);
-  while (c.read(authControllerProvider) is AuthInitializing) {
+  for (int i = 0; i < 100; i++) {
+    if (pred(c.read(authControllerProvider))) return;
     await Future<void>.delayed(Duration.zero);
   }
 }
@@ -89,7 +93,9 @@ void main() {
       when(() => repo.getMe()).thenAnswer((_) async => _fakeProfile);
 
       final c = _makeContainer(repo: repo, storage: storage);
-      await _settle(c);
+      // Optimistic restore fires first (empty profile), then getMe() updates it.
+      await _settleUntil(c, (s) =>
+          s is AuthAuthenticated && s.profile.id == 'user-1');
 
       final state = c.read(authControllerProvider);
       expect(state, isA<AuthAuthenticated>());
@@ -107,19 +113,23 @@ void main() {
           .thenThrow(const ServerError(statusCode: 401, message: 'Unauthorized'));
 
       final c = _makeContainer(repo: repo, storage: storage);
-      await _settle(c);
+      // Optimistic restore sets AuthAuthenticated first; 401 then clears it.
+      await _settleUntil(c, (s) => s is AuthUnauthenticated);
 
       expect(c.read(authControllerProvider), isA<AuthUnauthenticated>());
       verify(() => storage.clear()).called(1);
     });
 
-    test('→ AuthAuthenticated with stale role on non-401 /auth/me error',
+    test('→ AuthAuthenticated with cached role on non-401 /auth/me error',
         () async {
       final storage = _makeStorage(token: _kToken, role: 'agent');
       when(() => repo.getMe()).thenThrow(const NetworkError(message: 'timeout'));
 
       final c = _makeContainer(repo: repo, storage: storage);
+      // Optimistic restore uses cached role immediately; network error keeps it.
       await _settle(c);
+      // Drain background getMe() error so it doesn't bleed into next test.
+      await _settleUntil(c, (_) => true);
 
       final state = c.read(authControllerProvider);
       expect(state, isA<AuthAuthenticated>());

@@ -69,7 +69,6 @@ class AuthController extends Notifier<AuthState> {
     // our state assignment with build()'s return value (AuthInitializing).
     await Future<void>.value();
     final storage = ref.read(tokenStorageProvider);
-    // Synchronous read — never hangs, no Keystore involved.
     final token = storage.token;
 
     if (token == null) {
@@ -77,31 +76,30 @@ class AuthController extends Notifier<AuthState> {
       return;
     }
 
+    // Optimistic restore: immediately show the app with the cached role while
+    // GET /auth/me runs in the background. This prevents the splash from
+    // spinning for up to 30 s on slow networks or a cold Railway start.
+    final cachedRole = storage.role ?? 'user';
+    state = AuthAuthenticated(
+      profile: UserProfile(id: '', phone: '', role: cachedRole),
+    );
+
+    // Background refresh — updates role and profile without blocking the UI.
     try {
-      // CLAUDE.md contract: call GET /auth/me on every launch/resume.
       final profile = await ref.read(authRepositoryProvider).getMe();
       await storage.writeRole(profile.role);
-      state = AuthAuthenticated(profile: profile);
+      // Only update state if we're still authenticated (user didn't log out).
+      if (state is AuthAuthenticated) {
+        state = AuthAuthenticated(profile: profile);
+      }
     } on ServerError catch (e) {
       if (e.isUnauthorised) {
         await storage.clear();
         state = const AuthUnauthenticated();
-        return;
       }
-      final storedRole = storage.role ?? 'user';
-      state = AuthAuthenticated(
-        profile: UserProfile(id: '', phone: '', role: storedRole),
-      );
-    } on NetworkError {
-      final storedRole = storage.role ?? 'user';
-      state = AuthAuthenticated(
-        profile: UserProfile(id: '', phone: '', role: storedRole),
-      );
+      // Any other server error: keep the optimistic state already set.
     } catch (_) {
-      final storedRole = storage.role ?? 'user';
-      state = AuthAuthenticated(
-        profile: UserProfile(id: '', phone: '', role: storedRole),
-      );
+      // NetworkError or unknown: cached state is already showing, do nothing.
     }
   }
 
