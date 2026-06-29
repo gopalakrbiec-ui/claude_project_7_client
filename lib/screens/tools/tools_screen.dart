@@ -99,7 +99,11 @@ class _ToolCard extends StatelessWidget {
       margin: EdgeInsets.zero,
       clipBehavior: Clip.hardEdge,
       child: InkWell(
-        onTap: () => context.push('/home/tools/${tool.name}'),
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Coming soon — stay tuned!')),
+          );
+        },
         child: Row(
           children: [
             Container(
@@ -136,9 +140,23 @@ class _ToolCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: kSpaceSm),
-              child: Icon(Icons.chevron_right),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: kSpaceSm),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Soon',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ),
             ),
           ],
         ),
