@@ -295,7 +295,7 @@ void main() {
       when(() => repo.getOrder(any())).thenAnswer((_) async =>
           _order('done', resultUrl: 'https://cdn.example.com/wm.jpg'));
       when(() => repo.removeWatermark(any())).thenThrow(
-          const ServerError(statusCode: 402, message: 'Insufficient credits'));
+          const InsufficientCreditsError(availablePaise: 0, requiredPaise: 100));
 
       final c = _makeContainer(repo: repo);
       await _pump(c);
@@ -386,7 +386,7 @@ void main() {
       when(() => repo.getOrder(any())).thenAnswer((_) async =>
           _order('done', resultUrl: 'https://cdn.example.com/wm.jpg'));
       when(() => repo.removeWatermark(any())).thenThrow(
-          const ServerError(statusCode: 402, message: 'Insufficient credits'));
+          const InsufficientCreditsError(availablePaise: 0, requiredPaise: 100));
 
       final c = _makeContainer(repo: repo);
       await _pump(c);
