@@ -3,9 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../api/api_error.dart';
-import '../controllers/locale_controller.dart';
 import '../models/order.dart';
-import '../models/template.dart';
 import '../repositories/orders_repository.dart';
 
 // ---------------------------------------------------------------------------
@@ -16,15 +14,15 @@ final uuidProvider = Provider<Uuid>((_) => const Uuid());
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
-enum CreateOrderStatus { idle, submitting, success, error }
+enum CreateOrderStatus { idle, uploadingPhoto, submitting, success, error }
 
 class CreateOrderState {
   const CreateOrderState({
     required this.idempotencyKey,
-    this.name = '',
-    this.eventDate,
-    this.mediaType = 'image',
-    this.photoFile,
+    this.userPhotoFile,
+    this.userPhotoKey,
+    this.userPrompt = '',
+    this.aspectRatio = '1:1',
     this.customerPhone,
     this.status = CreateOrderStatus.idle,
     this.errorMessage,
@@ -33,29 +31,33 @@ class CreateOrderState {
   });
 
   final String idempotencyKey;
-  final String name;
-  final DateTime? eventDate;
-  final String mediaType;
-  final File? photoFile;
-  /// Agent-only: the customer's phone number, sent in input_payload.
-  /// Null (and hidden from the form) for consumer accounts.
+  /// Local file selected from camera/gallery.
+  final File? userPhotoFile;
+  /// Server-side key returned after upload. Sent with createOrder.
+  final String? userPhotoKey;
+  final String userPrompt;
+  /// '1:1' | '9:16' | '16:9' | '4:3'
+  final String aspectRatio;
+  /// Agent-only: forwarded in input_payload.customer_phone.
   final String? customerPhone;
   final CreateOrderStatus status;
   final String? errorMessage;
   final Order? createdOrder;
   final bool isInsufficientCredits;
 
+  bool get isUploadingPhoto => status == CreateOrderStatus.uploadingPhoto;
   bool get isSubmitting => status == CreateOrderStatus.submitting;
+  bool get isBusy => isUploadingPhoto || isSubmitting;
   bool get isSuccess => status == CreateOrderStatus.success;
 
   CreateOrderState copyWith({
     String? idempotencyKey,
-    String? name,
-    DateTime? eventDate,
-    bool clearEventDate = false,
-    String? mediaType,
-    File? photoFile,
+    File? userPhotoFile,
     bool clearPhoto = false,
+    String? userPhotoKey,
+    bool clearPhotoKey = false,
+    String? userPrompt,
+    String? aspectRatio,
     String? customerPhone,
     bool clearCustomerPhone = false,
     CreateOrderStatus? status,
@@ -66,13 +68,12 @@ class CreateOrderState {
   }) {
     return CreateOrderState(
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
-      name: name ?? this.name,
-      eventDate: clearEventDate ? null : (eventDate ?? this.eventDate),
-      mediaType: mediaType ?? this.mediaType,
-      photoFile: clearPhoto ? null : (photoFile ?? this.photoFile),
-      customerPhone: clearCustomerPhone
-          ? null
-          : (customerPhone ?? this.customerPhone),
+      userPhotoFile: clearPhoto ? null : (userPhotoFile ?? this.userPhotoFile),
+      userPhotoKey: clearPhotoKey ? null : (userPhotoKey ?? this.userPhotoKey),
+      userPrompt: userPrompt ?? this.userPrompt,
+      aspectRatio: aspectRatio ?? this.aspectRatio,
+      customerPhone:
+          clearCustomerPhone ? null : (customerPhone ?? this.customerPhone),
       status: status ?? this.status,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       createdOrder: createdOrder ?? this.createdOrder,
@@ -87,7 +88,6 @@ class CreateOrderState {
 // ---------------------------------------------------------------------------
 // IDEMPOTENCY: The UUID is generated ONCE in build() and stored in state.
 // submit() sends state.idempotencyKey on every attempt — same key on retries.
-// A new controller instance (new templateId) gets a fresh key automatically.
 // ---------------------------------------------------------------------------
 final createOrderControllerProvider = NotifierProvider.family<
     CreateOrderController, CreateOrderState, String>(
@@ -98,42 +98,67 @@ class CreateOrderController
     extends FamilyNotifier<CreateOrderState, String> {
   @override
   CreateOrderState build(String templateId) {
-    // Key is generated exactly once here — never inside submit().
     final key = ref.read(uuidProvider).v4();
     return CreateOrderState(idempotencyKey: key);
   }
 
   // -- Field setters --------------------------------------------------------
 
-  void setName(String value) =>
-      state = state.copyWith(name: value, clearError: true);
+  void setPrompt(String value) =>
+      state = state.copyWith(userPrompt: value, clearError: true);
 
-  void setEventDate(DateTime? value) =>
-      state = value == null
-          ? state.copyWith(clearEventDate: true)
-          : state.copyWith(eventDate: value);
-
-  void setMediaType(String value) =>
-      state = state.copyWith(mediaType: value);
-
-  void setPhoto(File? file) =>
-      state = file == null
-          ? state.copyWith(clearPhoto: true)
-          : state.copyWith(photoFile: file);
+  void setAspectRatio(String value) =>
+      state = state.copyWith(aspectRatio: value);
 
   void setCustomerPhone(String value) => state = state.copyWith(
       customerPhone: value.trim().isEmpty ? null : value.trim());
 
+  // -- Photo handling -------------------------------------------------------
+
+  /// Picks a photo file and immediately uploads it to the server.
+  /// Sets userPhotoFile for local preview; sets userPhotoKey on success.
+  Future<void> pickAndUploadPhoto(File file) async {
+    state = state.copyWith(
+      userPhotoFile: file,
+      clearPhotoKey: true,
+      status: CreateOrderStatus.uploadingPhoto,
+      clearError: true,
+    );
+    try {
+      final key =
+          await ref.read(ordersRepositoryProvider).uploadPhoto(file);
+      state = state.copyWith(
+        userPhotoKey: key,
+        status: CreateOrderStatus.idle,
+      );
+    } on ApiError catch (e) {
+      dev.log('[CreateOrder] photo upload error: $e', name: 'order');
+      state = state.copyWith(
+        clearPhoto: true,
+        clearPhotoKey: true,
+        status: CreateOrderStatus.error,
+        errorMessage: 'Photo upload failed. Please try again.',
+      );
+    } catch (e) {
+      state = state.copyWith(
+        clearPhoto: true,
+        clearPhotoKey: true,
+        status: CreateOrderStatus.error,
+        errorMessage: 'Photo upload failed: $e',
+      );
+    }
+  }
+
+  void clearPhoto() =>
+      state = state.copyWith(clearPhoto: true, clearPhotoKey: true, clearError: true);
+
   // -- Submit ---------------------------------------------------------------
 
-  Future<void> submit(Template template) async {
-    if (state.isSubmitting) return;
-
-    final language =
-        ref.read(localeControllerProvider).valueOrNull?.languageCode ?? 'en';
+  Future<void> submit(String templateId) async {
+    if (state.isBusy) return;
 
     final key = state.idempotencyKey;
-    dev.log('[CreateOrder] submit start — template=${template.id} key=$key', name: 'order');
+    dev.log('[CreateOrder] submit start — template=$templateId key=$key', name: 'order');
 
     state = state.copyWith(
       status: CreateOrderStatus.submitting,
@@ -142,21 +167,19 @@ class CreateOrderController
     );
 
     try {
-      dev.log('[CreateOrder] calling POST /orders', name: 'order');
       final order = await ref.read(ordersRepositoryProvider).createOrder(
             CreateOrderParams(
-              templateId: template.id,
+              templateId: templateId,
               idempotencyKey: key,
-              name: state.name.trim(),
-              eventDate: _formatDate(state.eventDate),
-              theme: template.theme,
-              language: language,
-              mediaType: state.mediaType,
+              userPhotoKey: state.userPhotoKey,
+              userPrompt: state.userPrompt.trim().isEmpty
+                  ? null
+                  : state.userPrompt.trim(),
+              aspectRatio: state.aspectRatio,
               customerPhone: state.customerPhone,
             ),
           );
       dev.log('[CreateOrder] success — orderId=${order.id}', name: 'order');
-
       state = state.copyWith(
         status: CreateOrderStatus.success,
         createdOrder: order,
@@ -187,9 +210,6 @@ class CreateOrderController
         errorMessage: e.toString(),
       );
     } catch (e, st) {
-      // Catches TypeError / FormatException from Order.fromJson, or any
-      // unexpected exception — without this the state stays 'submitting'
-      // forever and the spinner never stops.
       dev.log('[CreateOrder] unexpected error: $e\n$st', name: 'order', error: e);
       state = state.copyWith(
         status: CreateOrderStatus.error,
@@ -198,20 +218,11 @@ class CreateOrderController
     }
   }
 
-  /// Resets to idle so the user can fix the form and retry.
-  /// The idempotency key is PRESERVED — same attempt.
   void resetError() =>
       state = state.copyWith(status: CreateOrderStatus.idle, clearError: true);
 
-  /// Called when user consciously starts a new order (e.g. after success).
-  /// Generates a fresh idempotency key.
   void startNewOrder() {
     final newKey = ref.read(uuidProvider).v4();
     state = CreateOrderState(idempotencyKey: newKey);
-  }
-
-  static String _formatDate(DateTime? date) {
-    if (date == null) return '';
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
   }
 }

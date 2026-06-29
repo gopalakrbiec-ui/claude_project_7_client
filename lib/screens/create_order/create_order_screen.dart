@@ -1,18 +1,24 @@
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 
 import '../../controllers/auth_controller.dart';
 import '../../controllers/create_order_controller.dart';
 import '../../controllers/credits_controller.dart';
 import '../../controllers/templates_controller.dart';
 import '../../core/constants.dart';
+import '../../core/theme.dart';
 import '../../models/template.dart';
 import '../../repositories/templates_repository.dart';
 import '../../widgets/error_view.dart';
 
+// ---------------------------------------------------------------------------
+// Entry — resolves template then delegates to content widget
+// ---------------------------------------------------------------------------
 class CreateOrderScreen extends ConsumerWidget {
   const CreateOrderScreen({
     super.key,
@@ -25,8 +31,8 @@ class CreateOrderScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final template = preloaded ??
-        ref.read(templatesRepositoryProvider).getCached(templateId);
+    final template =
+        preloaded ?? ref.read(templatesRepositoryProvider).getCached(templateId);
 
     if (template != null) {
       return _CreateOrderContent(template: template);
@@ -70,29 +76,27 @@ class _CreateOrderContent extends ConsumerStatefulWidget {
 }
 
 class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _nameController;
+  late final TextEditingController _promptController;
   late final TextEditingController _phoneController;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController();
+    _promptController = TextEditingController();
     _phoneController = TextEditingController();
-    // If a previous order for this template succeeded, reset so the user
-    // gets a blank form instead of being immediately redirected to the old result.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctrl = ref.read(
-          createOrderControllerProvider(widget.template.id).notifier);
-      final state =
-          ref.read(createOrderControllerProvider(widget.template.id));
-      if (state.isSuccess) ctrl.startNewOrder();
+      final s = ref.read(createOrderControllerProvider(widget.template.id));
+      if (s.isSuccess) {
+        ref
+            .read(createOrderControllerProvider(widget.template.id).notifier)
+            .startNewOrder();
+      }
     });
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _promptController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
@@ -101,137 +105,195 @@ class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
 
   @override
   Widget build(BuildContext context) {
-    final ctrl = ref.read(
-        createOrderControllerProvider(widget.template.id).notifier);
-    final state =
-        ref.watch(createOrderControllerProvider(widget.template.id));
+    final ctrl = ref
+        .read(createOrderControllerProvider(widget.template.id).notifier);
+    final state = ref.watch(createOrderControllerProvider(widget.template.id));
     final balanceAsync = ref.watch(creditsControllerProvider);
     final canAfford =
         balanceAsync.valueOrNull?.canAfford(_template.basePricePaise) ?? true;
     final isAgent = ref.watch(isAgentProvider);
     final theme = Theme.of(context);
 
-    // Navigate to order-status once order is created.
-    ref.listen(createOrderControllerProvider(widget.template.id),
-        (prev, next) {
+    ref.listen(createOrderControllerProvider(widget.template.id), (_, next) {
       if (next.isSuccess && next.createdOrder != null) {
-        context.go(
-          '/home/order-status/${next.createdOrder!.id}',
-        );
+        context.go('/home/order-status/${next.createdOrder!.id}');
       }
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Event Details')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(kSpaceLg),
-          children: [
-            // Price summary
-            _PriceSummary(template: _template, canAfford: canAfford),
-            const SizedBox(height: kSpaceLg),
-
-            // Name field
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name(s) *',
-                hintText: 'e.g. Priya & Ravi',
+      backgroundColor: const Color(0xFFF8F8F8),
+      body: CustomScrollView(
+        slivers: [
+          // ── Hero app bar with template preview ──────────────────────────
+          SliverAppBar(
+            expandedHeight: 220,
+            pinned: true,
+            backgroundColor: Colors.white,
+            foregroundColor: kSaffron,
+            flexibleSpace: FlexibleSpaceBar(
+              title: Text(
+                _template.name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                ),
               ),
-              textCapitalization: TextCapitalization.words,
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Please enter a name';
-                if (v.trim().length < 2) return 'Name must be at least 2 characters';
-                return null;
-              },
-              onChanged: ctrl.setName,
-            ),
-            const SizedBox(height: kSpaceMd),
-
-            // Event date picker
-            _DateField(
-              selected: state.eventDate,
-              onChanged: ctrl.setEventDate,
-            ),
-            const SizedBox(height: kSpaceMd),
-
-            // Media type selector
-            _MediaTypeSelector(
-              selected: state.mediaType,
-              onChanged: ctrl.setMediaType,
-            ),
-            const SizedBox(height: kSpaceMd),
-
-            // Photo picker
-            _PhotoPicker(
-              photo: state.photoFile,
-              onPick: (file) => ctrl.setPhoto(file),
-            ),
-            const SizedBox(height: kSpaceMd),
-
-            // Agent-only: customer phone
-            if (isAgent) ...[
-              _CustomerPhoneField(
-                controller: _phoneController,
-                onChanged: ctrl.setCustomerPhone,
-              ),
-              const SizedBox(height: kSpaceMd),
-            ],
-            const SizedBox(height: kSpaceSm),
-
-            // Insufficient credits warning
-            if (balanceAsync.hasValue && !canAfford) ...[
-              _InsufficientCreditsWarning(theme: theme),
-              const SizedBox(height: kSpaceMd),
-            ],
-
-            // Generic error
-            if (state.errorMessage != null && !state.isInsufficientCredits) ...[
-              _ErrorBanner(message: state.errorMessage!, theme: theme),
-              const SizedBox(height: kSpaceMd),
-            ],
-
-            // Submit button — always shown; balance warning above is informational only.
-            ElevatedButton(
-              onPressed: state.isSubmitting
-                  ? null
-                  : () => _submit(ctrl, state),
-              child: state.isSubmitting
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (_template.previewUrl != null)
+                    CachedNetworkImage(
+                      imageUrl: _template.previewUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) =>
+                          Container(color: Colors.grey.shade200),
+                      errorWidget: (_, __, ___) =>
+                          Container(color: Colors.grey.shade300),
                     )
-                  : const Text('Proceed to Payment'),
-            ),
-            if (!canAfford && balanceAsync.hasValue) ...[
-              const SizedBox(height: kSpaceSm),
-              OutlinedButton(
-                onPressed: () => context.push('/home/topup'),
-                child: const Text('Top Up Credits'),
+                  else
+                    Container(
+                      decoration: const BoxDecoration(gradient: kBrandGradient),
+                    ),
+                  // Dark scrim so title is legible
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.55),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
+          ),
 
-            const SizedBox(height: kSpaceLg),
-          ],
-        ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(kSpaceMd),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ── Price row ───────────────────────────────────────────
+                  _PriceRow(template: _template, canAfford: canAfford),
+                  const SizedBox(height: kSpaceLg),
+
+                  // ── Your Photo ──────────────────────────────────────────
+                  _SectionLabel(
+                    icon: Icons.face_retouching_natural,
+                    label: 'Your Photo',
+                    required: false,
+                  ),
+                  const SizedBox(height: kSpaceSm),
+                  _PhotoPickerCard(
+                    state: state,
+                    onPick: (file) => ctrl.pickAndUploadPhoto(file),
+                    onClear: ctrl.clearPhoto,
+                  ),
+                  const SizedBox(height: kSpaceLg),
+
+                  // ── Prompt ──────────────────────────────────────────────
+                  _SectionLabel(
+                    icon: Icons.edit_note,
+                    label: 'Add Details (optional)',
+                    required: false,
+                  ),
+                  const SizedBox(height: kSpaceSm),
+                  TextField(
+                    controller: _promptController,
+                    decoration: const InputDecoration(
+                      hintText:
+                          'e.g. Wedding on 25 Dec, add roses, blue background…',
+                      filled: true,
+                    ),
+                    maxLines: 3,
+                    textCapitalization: TextCapitalization.sentences,
+                    onChanged: ctrl.setPrompt,
+                  ),
+                  const SizedBox(height: kSpaceLg),
+
+                  // ── Aspect ratio ────────────────────────────────────────
+                  _SectionLabel(
+                    icon: Icons.crop,
+                    label: 'Aspect Ratio',
+                    required: false,
+                  ),
+                  const SizedBox(height: kSpaceSm),
+                  _AspectRatioSelector(
+                    selected: state.aspectRatio,
+                    onChanged: ctrl.setAspectRatio,
+                  ),
+                  const SizedBox(height: kSpaceLg),
+
+                  // ── Agent: customer phone ───────────────────────────────
+                  if (isAgent) ...[
+                    _SectionLabel(
+                      icon: Icons.phone_outlined,
+                      label: 'Customer Phone (optional)',
+                      required: false,
+                    ),
+                    const SizedBox(height: kSpaceSm),
+                    TextField(
+                      controller: _phoneController,
+                      decoration: const InputDecoration(
+                        hintText: '+91 98765 43210',
+                        filled: true,
+                      ),
+                      keyboardType: TextInputType.phone,
+                      onChanged: ctrl.setCustomerPhone,
+                    ),
+                    const SizedBox(height: kSpaceLg),
+                  ],
+
+                  // ── Insufficient credits ────────────────────────────────
+                  if (balanceAsync.hasValue && !canAfford) ...[
+                    _Banner(
+                      color: theme.colorScheme.errorContainer,
+                      textColor: theme.colorScheme.onErrorContainer,
+                      icon: Icons.info_outline,
+                      message:
+                          'Insufficient credits. Top up to create this poster.',
+                    ),
+                    const SizedBox(height: kSpaceMd),
+                  ],
+
+                  // ── Error ───────────────────────────────────────────────
+                  if (state.errorMessage != null &&
+                      !state.isInsufficientCredits) ...[
+                    _Banner(
+                      color: theme.colorScheme.errorContainer,
+                      textColor: theme.colorScheme.onErrorContainer,
+                      icon: Icons.error_outline,
+                      message: state.errorMessage!,
+                    ),
+                    const SizedBox(height: kSpaceMd),
+                  ],
+
+                  // ── Generate button ─────────────────────────────────────
+                  _GenerateButton(state: state, onTap: () => ctrl.submit(_template.id)),
+
+                  if (!canAfford && balanceAsync.hasValue) ...[
+                    const SizedBox(height: kSpaceSm),
+                    OutlinedButton(
+                      onPressed: () => context.push('/home/topup'),
+                      child: const Text('Top Up Credits'),
+                    ),
+                  ],
+
+                  const SizedBox(height: kSpaceXl),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
-  }
-
-  Future<void> _submit(
-    CreateOrderController ctrl,
-    CreateOrderState state,
-  ) async {
-    if (!_formKey.currentState!.validate()) return;
-    if (state.eventDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an event date')),
-      );
-      return;
-    }
-    await ctrl.submit(_template);
   }
 }
 
@@ -239,8 +301,40 @@ class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
 // Sub-widgets
 // ---------------------------------------------------------------------------
 
-class _PriceSummary extends StatelessWidget {
-  const _PriceSummary({required this.template, required this.canAfford});
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({
+    required this.icon,
+    required this.label,
+    required this.required,
+  });
+  final IconData icon;
+  final String label;
+  final bool required;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: kSaffron),
+        const SizedBox(width: kSpaceXs),
+        Text(
+          label,
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: const Color(0xFF1A1A1A),
+          ),
+        ),
+        if (required) ...[
+          const SizedBox(width: 2),
+          Text('*', style: TextStyle(color: theme.colorScheme.error)),
+        ],
+      ],
+    );
+  }
+}
+
+class _PriceRow extends StatelessWidget {
+  const _PriceRow({required this.template, required this.canAfford});
   final Template template;
   final bool canAfford;
 
@@ -248,32 +342,27 @@ class _PriceSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(kSpaceMd),
+      padding: const EdgeInsets.symmetric(
+          horizontal: kSpaceMd, vertical: kSpaceSm),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(template.name, style: theme.textTheme.titleMedium),
-              const SizedBox(height: 4),
-              Text(template.theme,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.secondary,
-                  )),
-            ],
-          ),
+          Text('Price', style: theme.textTheme.bodyMedium),
           Text(
-            // priceDisplay comes from the model — client never computes price.
             template.priceDisplay,
-            style: theme.textTheme.titleLarge?.copyWith(
-              color: canAfford
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.error,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: canAfford ? kSaffron : theme.colorScheme.error,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -283,206 +372,373 @@ class _PriceSummary extends StatelessWidget {
   }
 }
 
-class _DateField extends StatelessWidget {
-  const _DateField({required this.selected, required this.onChanged});
-  final DateTime? selected;
-  final ValueChanged<DateTime?> onChanged;
+class _PhotoPickerCard extends StatelessWidget {
+  const _PhotoPickerCard({
+    required this.state,
+    required this.onPick,
+    required this.onClear,
+  });
+  final CreateOrderState state;
+  final void Function(File) onPick;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final label = selected == null
-        ? 'Event Date *'
-        : 'Event Date: ${_format(selected!)}';
+    final hasPhoto = state.userPhotoFile != null;
 
-    return InkWell(
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: selected ?? DateTime.now().add(const Duration(days: 7)),
-          firstDate: DateTime.now(),
-          lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-        );
-        onChanged(picked);
-      },
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          suffixIcon: const Icon(Icons.calendar_today),
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: hasPhoto ? kSaffron : const Color(0xFFDDDDDD),
+          width: hasPhoto ? 2 : 1.5,
         ),
-        child: Text(
-          selected == null ? 'Tap to select date' : _format(selected!),
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: selected == null ? theme.hintColor : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-        ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: hasPhoto
+          ? _PhotoPreview(state: state, onClear: onClear)
+          : _PhotoPickPrompt(onPick: onPick),
+    );
+  }
+}
+
+class _PhotoPickPrompt extends StatelessWidget {
+  const _PhotoPickPrompt({required this.onPick});
+  final void Function(File) onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => _showSourceSheet(context),
+      borderRadius: BorderRadius.circular(16),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              gradient: kBrandGradient,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.add_a_photo, color: Colors.white, size: 30),
+          ),
+          const SizedBox(height: kSpaceMd),
+          const Text(
+            'Tap to add your photo',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+          const SizedBox(height: kSpaceXs),
+          Text(
+            'Camera or gallery',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+          ),
+        ],
       ),
     );
   }
 
-  static String _format(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-}
-
-class _MediaTypeSelector extends StatelessWidget {
-  const _MediaTypeSelector(
-      {required this.selected, required this.onChanged});
-  final String selected;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Format', style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: kSpaceXs),
-        SegmentedButton<String>(
-          segments: const [
-            ButtonSegment(value: 'image', label: Text('Image')),
-            ButtonSegment(value: 'video', label: Text('Video')),
-          ],
-          selected: {selected},
-          onSelectionChanged: (s) => onChanged(s.first),
-        ),
-      ],
-    );
-  }
-}
-
-class _PhotoPicker extends StatelessWidget {
-  const _PhotoPicker({required this.photo, required this.onPick});
-  final File? photo;
-  final ValueChanged<File?> onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Photo (optional)', style: theme.textTheme.labelLarge),
-        const SizedBox(height: kSpaceXs),
-        if (photo != null) ...[
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.file(photo!,
-                height: 160, width: double.infinity, fit: BoxFit.cover),
-          ),
-          const SizedBox(height: kSpaceXs),
-          OutlinedButton.icon(
-            onPressed: () => onPick(null),
-            icon: const Icon(Icons.delete_outline),
-            label: const Text('Remove Photo'),
-          ),
-        ] else ...[
-          OutlinedButton.icon(
-            onPressed: () => _pick(context),
-            icon: const Icon(Icons.add_a_photo_outlined),
-            label: const Text('Add Photo'),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Future<void> _pick(BuildContext context) async {
-    final picker = ImagePicker();
+  Future<void> _showSourceSheet(BuildContext context) async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Camera'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Gallery'),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: kSpaceSm),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: kSpaceMd),
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: kSaffron),
+                title: const Text('Camera'),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: kSaffron),
+                title: const Text('Gallery'),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+              const SizedBox(height: kSpaceSm),
+            ],
+          ),
         ),
       ),
     );
     if (source == null) return;
+    final picker = ImagePicker();
     final picked = await picker.pickImage(source: source, imageQuality: 90);
     if (picked != null) onPick(File(picked.path));
   }
 }
 
-class _InsufficientCreditsWarning extends StatelessWidget {
-  const _InsufficientCreditsWarning({required this.theme});
-  final ThemeData theme;
+class _PhotoPreview extends StatelessWidget {
+  const _PhotoPreview({required this.state, required this.onClear});
+  final CreateOrderState state;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(kSpaceSm),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline,
-              size: 16, color: theme.colorScheme.onErrorContainer),
-          const SizedBox(width: kSpaceXs),
-          Expanded(
-            child: Text(
-              'Insufficient credits. Top up to create this design.',
-              style: TextStyle(
-                  color: theme.colorScheme.onErrorContainer, fontSize: 13),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.file(state.userPhotoFile!, fit: BoxFit.cover),
+        // Uploading overlay
+        if (state.isUploadingPhoto)
+          Container(
+            color: Colors.black54,
+            child: const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: Colors.white),
+                  SizedBox(height: kSpaceSm),
+                  Text(
+                    'Uploading…',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else ...[
+          // Uploaded badge
+          if (state.userPhotoKey != null)
+            Positioned(
+              top: kSpaceSm,
+              right: kSpaceSm,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: kSpaceSm, vertical: kSpaceXs),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade700,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white, size: 14),
+                    SizedBox(width: 4),
+                    Text('Ready',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ),
+          // Remove button
+          Positioned(
+            bottom: kSpaceSm,
+            right: kSpaceSm,
+            child: GestureDetector(
+              onTap: onClear,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, color: Colors.white, size: 18),
+              ),
             ),
           ),
         ],
-      ),
+      ],
     );
   }
 }
 
-class _CustomerPhoneField extends StatelessWidget {
-  const _CustomerPhoneField({
-    required this.controller,
-    required this.onChanged,
-  });
-  final TextEditingController controller;
+class _AspectRatioSelector extends StatelessWidget {
+  const _AspectRatioSelector(
+      {required this.selected, required this.onChanged});
+  final String selected;
   final ValueChanged<String> onChanged;
+
+  static const _options = [
+    ('1:1', Icons.crop_square, 'Square'),
+    ('9:16', Icons.crop_portrait, 'Story'),
+    ('16:9', Icons.crop_landscape, 'Wide'),
+    ('4:3', Icons.crop_3_2, 'Standard'),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      decoration: const InputDecoration(
-        labelText: 'Customer Phone (optional)',
-        hintText: '+91 98765 43210',
-        prefixIcon: Icon(Icons.phone_outlined),
-      ),
-      keyboardType: TextInputType.phone,
-      onChanged: onChanged,
+    return Row(
+      children: _options.map((opt) {
+        final (value, icon, label) = opt;
+        final isSelected = selected == value;
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(right: kSpaceXs),
+            child: GestureDetector(
+              onTap: () => onChanged(value),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(vertical: kSpaceSm),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? kSaffron.withValues(alpha: 0.12)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isSelected ? kSaffron : const Color(0xFFDDDDDD),
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Icon(icon,
+                        size: 22,
+                        color: isSelected ? kSaffron : Colors.grey.shade500),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color:
+                            isSelected ? kSaffron : const Color(0xFF555555),
+                      ),
+                    ),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
 
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message, required this.theme});
+class _GenerateButton extends StatelessWidget {
+  const _GenerateButton({required this.state, required this.onTap});
+  final CreateOrderState state;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final busy = state.isBusy;
+    final label = state.isUploadingPhoto
+        ? 'Uploading photo…'
+        : state.isSubmitting
+            ? 'Generating…'
+            : 'Generate Poster';
+
+    return Container(
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: busy ? null : kBrandGradient,
+        color: busy ? Colors.grey.shade300 : null,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: busy ? null : onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Center(
+            child: busy
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(width: kSpaceSm),
+                      Text(label,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade700,
+                          )),
+                    ],
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+                      SizedBox(width: kSpaceSm),
+                      Text(
+                        'Generate Poster',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Banner extends StatelessWidget {
+  const _Banner({
+    required this.color,
+    required this.textColor,
+    required this.icon,
+    required this.message,
+  });
+  final Color color;
+  final Color textColor;
+  final IconData icon;
   final String message;
-  final ThemeData theme;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(kSpaceSm),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        message,
-        style: TextStyle(color: theme.colorScheme.onErrorContainer),
+      decoration:
+          BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: textColor),
+          const SizedBox(width: kSpaceXs),
+          Expanded(
+            child: Text(message,
+                style: TextStyle(color: textColor, fontSize: 13)),
+          ),
+        ],
       ),
     );
   }

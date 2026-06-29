@@ -1,4 +1,5 @@
 import 'dart:developer' as dev;
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/dio_client.dart';
@@ -19,29 +20,46 @@ class CreateOrderParams {
   const CreateOrderParams({
     required this.templateId,
     required this.idempotencyKey,
-    required this.name,
-    required this.eventDate,
-    required this.theme,
-    required this.language,
-    required this.mediaType,
+    this.userPhotoKey,
+    this.userPrompt,
+    this.aspectRatio = '1:1',
     this.customerPhone,
   });
 
   final String templateId;
   final String idempotencyKey;
-  final String name;
-  final String eventDate; // ISO-8601 date string e.g. "2025-12-25"
-  final String theme;
-  final String language;
-  final String mediaType; // "image" | "video"
-  /// Agent-only: forwarded in input_payload.customer_phone.
-  /// Backend infers the agent role from the JWT; this is purely metadata.
+  final String? userPhotoKey;
+  final String? userPrompt;
+  final String aspectRatio;
   final String? customerPhone;
 }
 
 class OrdersRepository {
   OrdersRepository(this._dio);
   final Dio _dio;
+
+  /// Uploads a user photo for face-swap generation.
+  /// Returns the photo_key string to include in [createOrder].
+  Future<String> uploadPhoto(File photo) async {
+    dev.log('[OrdersRepo] POST /uploads/photo', name: 'order');
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(
+          photo.path,
+          filename: 'photo.jpg',
+        ),
+      });
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/uploads/photo',
+        data: formData,
+      );
+      dev.log('[OrdersRepo] upload response: ${response.data}', name: 'order');
+      return response.data!['photo_key'] as String;
+    } on DioException catch (e) {
+      dev.log('[OrdersRepo] upload DioException: ${e.type} ${e.response?.statusCode}', name: 'order');
+      throw DioClient.handleDioError(e);
+    }
+  }
 
   Future<Order> createOrder(CreateOrderParams params) async {
     dev.log('[OrdersRepo] POST /orders — templateId=${params.templateId} key=${params.idempotencyKey}', name: 'order');
@@ -50,13 +68,11 @@ class OrdersRepository {
         'template_id': params.templateId,
         'idempotency_key': params.idempotencyKey,
         'input_payload': {
-          'name': params.name,
-          'event_date': params.eventDate,
-          'theme': params.theme,
-          'language': params.language,
-          'media_type': params.mediaType,
-          if (params.customerPhone != null &&
-              params.customerPhone!.isNotEmpty)
+          if (params.userPhotoKey != null) 'user_photo_key': params.userPhotoKey,
+          if (params.userPrompt != null && params.userPrompt!.isNotEmpty)
+            'user_prompt': params.userPrompt,
+          'aspect_ratio': params.aspectRatio,
+          if (params.customerPhone != null && params.customerPhone!.isNotEmpty)
             'customer_phone': params.customerPhone,
         },
       });
