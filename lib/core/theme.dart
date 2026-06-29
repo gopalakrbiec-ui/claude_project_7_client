@@ -19,7 +19,7 @@ const kBrandGradient = LinearGradient(
   colors: [kSaffron, kMagenta],
 );
 
-ThemeData buildAppTheme() => _build(Brightness.dark);
+ThemeData buildAppTheme() => _build(Brightness.light);
 
 ThemeData _build(Brightness brightness) {
   const onPrimary  = Colors.white;

@@ -117,15 +117,9 @@ class _HeroBanner extends ConsumerWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Background gradient
+            // Background — brand gradient (same saffron→magenta used in splash)
             Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF1A0A00), Color(0xFF2A0020), Color(0xFF0A0015)],
-                ),
-              ),
+              decoration: const BoxDecoration(gradient: kBrandGradient),
             ),
             // Decorative sparkle circles
             Positioned(
@@ -134,7 +128,7 @@ class _HeroBanner extends ConsumerWidget {
                 width: 200, height: 200,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: kSaffron.withValues(alpha: 0.08),
+                  color: Colors.white.withValues(alpha: 0.08),
                 ),
               ),
             ),
@@ -144,7 +138,7 @@ class _HeroBanner extends ConsumerWidget {
                 width: 220, height: 220,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: kMagenta.withValues(alpha: 0.10),
+                  color: Colors.white.withValues(alpha: 0.07),
                 ),
               ),
             ),
@@ -221,7 +215,7 @@ class _HeroBanner extends ConsumerWidget {
                             Text(
                               'Try  ',
                               style: TextStyle(
-                                color: kDarkBg,
+                                color: Color(0xFF1A1A1A),
                                 fontWeight: FontWeight.w700,
                                 fontSize: 15,
                               ),
@@ -303,8 +297,8 @@ class _CategorySection extends StatelessWidget {
               children: [
                 Text(
                   '$label $emoji',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                   ),
@@ -312,20 +306,20 @@ class _CategorySection extends StatelessWidget {
                 const Spacer(),
                 if (items.length > 3)
                   GestureDetector(
-                    onTap: () {
-                      // Navigate to filtered template list
-                    },
+                    onTap: () {},
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFF3A3A3A)),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
+                      child: Text(
                         'More >',
                         style: TextStyle(
-                          color: Color(0xFFAAAAAA),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontSize: 13,
                         ),
                       ),
@@ -378,7 +372,7 @@ class _CategorySkeleton extends StatelessWidget {
               width: 140,
               height: 20,
               decoration: BoxDecoration(
-                color: const Color(0xFF2A2A2A),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(6),
               ),
             ),
@@ -510,32 +504,25 @@ class _MyOrdersTab extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: const Color(0xFF242424),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.inbox_outlined,
-                size: 40,
-                color: Color(0xFF888888),
-              ),
+            Icon(
+              Icons.inbox_outlined,
+              size: 72,
+              color: Theme.of(context).colorScheme.outlineVariant,
             ),
             const SizedBox(height: kSpaceMd),
-            const Text(
+            Text(
               'No orders yet',
-              style: TextStyle(
-                color: Colors.white,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontSize: 18,
-                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: kSpaceSm),
-            const Text(
+            Text(
               'Your generated posters will appear here.',
-              style: TextStyle(color: Color(0xFF888888), fontSize: 14),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 14,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
