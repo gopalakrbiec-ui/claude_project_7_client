@@ -63,7 +63,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         notchMargin: 8,
-        height: 64,
+        height: 72,
+        padding: EdgeInsets.zero,
         child: Row(
           children: [
             // Home
@@ -117,7 +118,7 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
