@@ -153,7 +153,7 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> logout() async {
     _inactivityTimer?.cancel();
-    await ref.read(tokenStorageProvider).clearToken();
+    await ref.read(tokenStorageProvider).clear();
     state = const AuthUnauthenticated();
   }
 

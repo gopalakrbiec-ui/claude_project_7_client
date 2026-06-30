@@ -36,7 +36,14 @@ MockTokenStorage _makeStorage({String? token, String? role}) {
   when(() => s.role).thenReturn(role);
   when(() => s.writeToken(any())).thenAnswer((_) async {});
   when(() => s.writeRole(any())).thenAnswer((_) async {});
+  when(() => s.clearToken()).thenAnswer((_) async {});
   when(() => s.clear()).thenAnswer((_) async {});
+  when(() => s.writeRegistration(
+    name: any(named: 'name'),
+    email: any(named: 'email'),
+    mobile: any(named: 'mobile'),
+    city: any(named: 'city'),
+  )).thenAnswer((_) async {});
   return s;
 }
 
@@ -88,52 +95,27 @@ void main() {
       verifyNever(() => repo.getMe());
     });
 
-    test('→ AuthAuthenticated when token valid + /auth/me succeeds', () async {
-      final storage = _makeStorage(token: _kToken);
-      when(() => repo.getMe()).thenAnswer((_) async => _fakeProfile);
+    test('→ AuthUnauthenticated on cold start even when token is stored (session security)',
+        () async {
+      final storage = _makeStorage(token: _kToken, role: 'user');
 
       final c = _makeContainer(repo: repo, storage: storage);
-      // Optimistic restore fires first (empty profile), then getMe() updates it.
-      await _settleUntil(c, (s) =>
-          s is AuthAuthenticated && s.profile.id == 'user-1');
+      await _settle(c);
 
-      final state = c.read(authControllerProvider);
-      expect(state, isA<AuthAuthenticated>());
-      final auth = state as AuthAuthenticated;
-      expect(auth.profile.phone, _kPhone);
-      expect(auth.profile.role, 'user');
-      expect(auth.isNewUser, false);
-      verify(() => storage.writeRole('user')).called(1);
+      // Cold start always clears the token and requires re-login.
+      expect(c.read(authControllerProvider), isA<AuthUnauthenticated>());
+      verify(() => storage.clearToken()).called(1);
+      verifyNever(() => repo.getMe());
     });
 
-    test('→ AuthUnauthenticated + credentials cleared on 401 from /auth/me',
-        () async {
-      final storage = _makeStorage(token: _kToken);
-      when(() => repo.getMe())
-          .thenThrow(const ServerError(statusCode: 401, message: 'Unauthorized'));
+    test('→ AuthUnauthenticated on cold start regardless of stored role', () async {
+      final storage = _makeStorage(token: _kToken, role: 'agent');
 
       final c = _makeContainer(repo: repo, storage: storage);
-      // Optimistic restore sets AuthAuthenticated first; 401 then clears it.
-      await _settleUntil(c, (s) => s is AuthUnauthenticated);
+      await _settle(c);
 
       expect(c.read(authControllerProvider), isA<AuthUnauthenticated>());
-      verify(() => storage.clear()).called(1);
-    });
-
-    test('→ AuthAuthenticated with cached role on non-401 /auth/me error',
-        () async {
-      final storage = _makeStorage(token: _kToken, role: 'agent');
-      when(() => repo.getMe()).thenThrow(const NetworkError(message: 'timeout'));
-
-      final c = _makeContainer(repo: repo, storage: storage);
-      // Optimistic restore uses cached role immediately; network error keeps it.
-      await _settle(c);
-      // Drain background getMe() error so it doesn't bleed into next test.
-      await _settleUntil(c, (_) => true);
-
-      final state = c.read(authControllerProvider);
-      expect(state, isA<AuthAuthenticated>());
-      expect((state as AuthAuthenticated).profile.role, 'agent');
+      verify(() => storage.clearToken()).called(1);
     });
   });
 
@@ -273,12 +255,22 @@ void main() {
   });
 
   group('logout', () {
-    test('→ AuthUnauthenticated; clears credentials', () async {
-      final storage = _makeStorage(token: _kToken);
-      when(() => repo.getMe()).thenAnswer((_) async => _fakeProfile);
+    test('→ AuthUnauthenticated; clears all credentials', () async {
+      final storage = _makeStorage();
+      when(() => repo.verifyOtp(_kPhone, _kCode)).thenAnswer(
+        (_) async => const VerifyOtpResult(
+          accessToken: _kToken,
+          tokenType: 'bearer',
+          role: 'user',
+          isNewUser: false,
+        ),
+      );
 
       final c = _makeContainer(repo: repo, storage: storage);
       await _settle(c);
+
+      // Authenticate first via OTP.
+      await c.read(authControllerProvider.notifier).verifyOtp(_kPhone, _kCode);
       expect(c.read(authControllerProvider), isA<AuthAuthenticated>());
 
       await c.read(authControllerProvider.notifier).logout();
@@ -291,11 +283,21 @@ void main() {
   group('forceLogout', () {
     test('→ AuthUnauthenticated synchronously (called by JWT interceptor)',
         () async {
-      final storage = _makeStorage(token: _kToken);
-      when(() => repo.getMe()).thenAnswer((_) async => _fakeProfile);
+      final storage = _makeStorage();
+      when(() => repo.verifyOtp(_kPhone, _kCode)).thenAnswer(
+        (_) async => const VerifyOtpResult(
+          accessToken: _kToken,
+          tokenType: 'bearer',
+          role: 'user',
+          isNewUser: false,
+        ),
+      );
 
       final c = _makeContainer(repo: repo, storage: storage);
       await _settle(c);
+
+      // Authenticate first via OTP.
+      await c.read(authControllerProvider.notifier).verifyOtp(_kPhone, _kCode);
       expect(c.read(authControllerProvider), isA<AuthAuthenticated>());
 
       c.read(authControllerProvider.notifier).forceLogout();
