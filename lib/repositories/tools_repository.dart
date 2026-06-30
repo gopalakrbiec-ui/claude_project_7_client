@@ -57,15 +57,46 @@ class AiToolDef {
   }
 }
 
-class ToolResult {
-  const ToolResult({required this.resultUrl, required this.costDisplay});
-  final String resultUrl;
-  final String costDisplay;
+/// Immediate response from POST /tools/{id} — job is queued.
+class ToolJobResponse {
+  const ToolJobResponse({required this.jobId, required this.costPaise});
+  final String jobId;
+  final int costPaise;
 
-  factory ToolResult.fromJson(Map<String, dynamic> json) => ToolResult(
-        resultUrl: json['result_url']?.toString() ?? '',
-        costDisplay: json['cost_display']?.toString() ??
-            AiToolDef._formatPaise((json['cost_paise'] as num?)?.toInt() ?? 0),
+  factory ToolJobResponse.fromJson(Map<String, dynamic> json) => ToolJobResponse(
+        jobId: json['job_id']?.toString() ?? '',
+        costPaise: (json['cost_paise'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Polled status from GET /tools/status/{job_id}.
+class ToolJobStatus {
+  const ToolJobStatus({
+    required this.jobId,
+    required this.status,
+    this.resultUrl,
+    this.error,
+    required this.costPaise,
+  });
+
+  final String jobId;
+  final String status; // "processing" | "done" | "failed"
+  final String? resultUrl;
+  final String? error;
+  final int costPaise;
+
+  bool get isDone => status == 'done';
+  bool get isFailed => status == 'failed';
+  bool get isProcessing => status == 'processing';
+
+  String get costDisplay => AiToolDef._formatPaise(costPaise);
+
+  factory ToolJobStatus.fromJson(Map<String, dynamic> json) => ToolJobStatus(
+        jobId: json['job_id']?.toString() ?? '',
+        status: json['status']?.toString() ?? 'processing',
+        resultUrl: json['result_url']?.toString(),
+        error: json['error']?.toString(),
+        costPaise: (json['cost_paise'] as num?)?.toInt() ?? 0,
       );
 }
 
@@ -113,9 +144,8 @@ class ToolsRepository {
     }
   }
 
-  /// Run a tool. [extraFields] lets callers send tool-specific named params
-  /// (e.g. hair_colour for Hair Salon) without hard-coding them here.
-  Future<ToolResult> runTool(
+  /// Submit a tool job. Returns immediately with a job_id; poll [getToolStatus].
+  Future<ToolJobResponse> runTool(
     String toolId, {
     String? photoKey,
     String? targetPhotoKey,
@@ -135,7 +165,18 @@ class ToolsRepository {
         '/tools/$toolId',
         data: body,
       );
-      return ToolResult.fromJson(response.data!);
+      return ToolJobResponse.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw DioClient.handleDioError(e);
+    }
+  }
+
+  /// Poll job status. Returns "processing" | "done" | "failed".
+  Future<ToolJobStatus> getToolStatus(String jobId) async {
+    try {
+      final response =
+          await _dio.get<Map<String, dynamic>>('/tools/status/$jobId');
+      return ToolJobStatus.fromJson(response.data!);
     } on DioException catch (e) {
       throw DioClient.handleDioError(e);
     }

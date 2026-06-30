@@ -58,16 +58,6 @@ class _ToolInputConfig {
 _ToolInputConfig _configFor(AiToolDef tool) {
   final n = tool.name.toLowerCase();
 
-  if (n.contains('face swap')) {
-    return const _ToolInputConfig(
-      needsPhoto: true,
-      needsTargetPhoto: true,
-      needsPrompt: false,
-      photoLabel: 'Your Face Photo',
-      targetLabel: 'Target Body Photo (swap onto)',
-      thumbnailUrl: 'https://picsum.photos/seed/faceswap42/400/400',
-    );
-  }
   if (n.contains('ai filter') || (n.contains('filter') && !n.contains('hair'))) {
     return const _ToolInputConfig(
       needsPhoto: true,
@@ -79,14 +69,6 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       thumbnailUrl: 'https://picsum.photos/seed/aifilter87/400/400',
     );
   }
-  if (n.contains('bg remove') || n.contains('background remove')) {
-    return const _ToolInputConfig(
-      needsPhoto: true,
-      needsTargetPhoto: false,
-      needsPrompt: false,
-      thumbnailUrl: 'https://picsum.photos/seed/bgremove33/400/400',
-    );
-  }
   if (n.contains('ai background') || n.contains('background')) {
     return const _ToolInputConfig(
       needsPhoto: true,
@@ -95,22 +77,6 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       promptLabel: 'New Background',
       promptHint: 'e.g. beach at sunset, mountain forest, Taj Mahal…',
       thumbnailUrl: 'https://picsum.photos/seed/aibg55/400/400',
-    );
-  }
-  if (n.contains('upscale') || n.contains('hd')) {
-    return const _ToolInputConfig(
-      needsPhoto: true,
-      needsTargetPhoto: false,
-      needsPrompt: false,
-      thumbnailUrl: 'https://picsum.photos/seed/upscale19/400/400',
-    );
-  }
-  if (n.contains('restore')) {
-    return const _ToolInputConfig(
-      needsPhoto: true,
-      needsTargetPhoto: false,
-      needsPrompt: false,
-      thumbnailUrl: 'https://picsum.photos/seed/restore66/400/400',
     );
   }
   if (n.contains('outfit')) {
@@ -168,14 +134,8 @@ _ToolInputConfig _configFor(AiToolDef tool) {
 // ---------------------------------------------------------------------------
 List<Color> _gradientFor(String name) {
   final n = name.toLowerCase();
-  if (n.contains('face')) return [const Color(0xFF1565C0), const Color(0xFF42A5F5)];
   if (n.contains('filter')) return [const Color(0xFF6A1B9A), const Color(0xFFCE93D8)];
-  if (n.contains('bg remove') || n.contains('background remove')) {
-    return [const Color(0xFF2E7D32), const Color(0xFF66BB6A)];
-  }
   if (n.contains('background')) return [const Color(0xFF00695C), const Color(0xFF4DB6AC)];
-  if (n.contains('upscale') || n.contains('hd')) return [const Color(0xFF00838F), const Color(0xFF4DD0E1)];
-  if (n.contains('restore')) return [const Color(0xFFBF360C), const Color(0xFFFF8A65)];
   if (n.contains('outfit')) return [const Color(0xFF880E4F), const Color(0xFFF48FB1)];
   if (n.contains('hair')) return [const Color(0xFF4A148C), const Color(0xFFBA68C8)];
   if (n.contains('remix')) return [const Color(0xFFE65100), const Color(0xFFFFB74D)];
@@ -185,12 +145,8 @@ List<Color> _gradientFor(String name) {
 
 IconData _iconFor(String name) {
   final n = name.toLowerCase();
-  if (n.contains('face')) return Icons.face_retouching_natural;
   if (n.contains('filter')) return Icons.auto_fix_high;
-  if (n.contains('bg remove') || n.contains('background remove')) return Icons.layers_clear_outlined;
   if (n.contains('background')) return Icons.wallpaper_rounded;
-  if (n.contains('upscale') || n.contains('hd')) return Icons.hd_outlined;
-  if (n.contains('restore')) return Icons.auto_fix_high_outlined;
   if (n.contains('outfit')) return Icons.checkroom_outlined;
   if (n.contains('hair')) return Icons.content_cut_outlined;
   if (n.contains('remix')) return Icons.shuffle_rounded;
@@ -419,6 +375,7 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   bool _uploadingTarget = false;
 
   bool _processing = false;
+  String? _processingStatus; // shown under spinner while polling
   String? _resultUrl;
   String? _resultCostDisplay;
   String? _error;
@@ -552,7 +509,9 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : Icon(_iconFor(widget.tool.name)),
-              label: Text(_processing ? 'Processing…' : 'Run ${widget.tool.name}'),
+              label: Text(_processing
+                  ? (_processingStatus ?? 'Processing…')
+                  : 'Run ${widget.tool.name}'),
               style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14)),
             ),
@@ -617,6 +576,7 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   Future<void> _run() async {
     setState(() {
       _processing = true;
+      _processingStatus = 'Submitting…';
       _error = null;
       _resultUrl = null;
     });
@@ -625,27 +585,56 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
           ? {_cfg.promptFieldName: _promptCtrl.text.trim()}
           : null;
 
-      final result = await ref.read(toolsRepositoryProvider).runTool(
-            widget.tool.id,
-            photoKey: _cfg.needsPhoto ? _sourcePhotoKey : null,
-            targetPhotoKey: _cfg.needsTargetPhoto ? _targetPhotoKey : null,
-            extraFields: extraFields,
-          );
-      if (mounted) {
-        setState(() {
-          _resultUrl = result.resultUrl;
-          _resultCostDisplay = result.costDisplay;
-          _processing = false;
-        });
+      final repo = ref.read(toolsRepositoryProvider);
+      final job = await repo.runTool(
+        widget.tool.id,
+        photoKey: _cfg.needsPhoto ? _sourcePhotoKey : null,
+        targetPhotoKey: _cfg.needsTargetPhoto ? _targetPhotoKey : null,
+        extraFields: extraFields,
+      );
+
+      if (mounted) setState(() => _processingStatus = 'Processing…');
+
+      // Poll every 3 s until done or failed.
+      while (mounted) {
+        await Future<void>.delayed(const Duration(seconds: 3));
+        if (!mounted) return;
+
+        final status = await repo.getToolStatus(job.jobId);
+
+        if (status.isDone) {
+          if (mounted) {
+            setState(() {
+              _resultUrl = status.resultUrl;
+              _resultCostDisplay = status.costDisplay;
+              _processing = false;
+              _processingStatus = null;
+            });
+          }
+          return;
+        }
+
+        if (status.isFailed) {
+          if (mounted) {
+            setState(() {
+              _processing = false;
+              _processingStatus = null;
+              _error = status.error ?? 'AI processing failed. Please try again.';
+            });
+          }
+          return;
+        }
+        // still processing — continue loop
       }
     } on InsufficientCreditsError catch (e) {
       if (!mounted) return;
-      setState(() => _processing = false);
+      setState(() { _processing = false; _processingStatus = null; });
       InsufficientCreditsDialog.show(context, e);
     } on ApiError catch (e) {
       if (!mounted) return;
       setState(() {
         _processing = false;
+        _processingStatus = null;
         _error = _msg(e);
       });
     }
