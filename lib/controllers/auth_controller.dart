@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_error.dart';
 import '../core/token_storage.dart';
@@ -27,7 +25,6 @@ final class AuthUnauthenticated extends AuthState {
 final class AuthAuthenticated extends AuthState {
   const AuthAuthenticated({required this.profile, this.isNewUser = false});
   final UserProfile profile;
-  /// Set on the first login after OTP verify; cleared on subsequent launches.
   final bool isNewUser;
 }
 
@@ -55,7 +52,7 @@ class AuthController extends Notifier<AuthState> {
     return const AuthInitializing();
   }
 
-  // ── Initialisation (every app launch / resume) ──────────────────────────
+  // ── Initialisation ──────────────────────────────────────────────────────
 
   Future<void> _init() async {
     try {
@@ -66,28 +63,71 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> _doInit() async {
+    // Ensure at least one async hop before setting state so Riverpod doesn't
+    // overwrite our assignment with build()'s return value.
     await Future<void>.value();
     final storage = ref.read(tokenStorageProvider);
+    final token = storage.token;
 
-    // Always require re-login on cold start (app killed / closed).
-    // The token is cleared so the user must authenticate every session.
-    await storage.clearToken();
-    state = const AuthUnauthenticated();
+    if (token == null) {
+      state = const AuthUnauthenticated();
+      return;
+    }
+
+    // Optimistic restore: show the app immediately with the cached role while
+    // GET /auth/me runs in the background (avoids spinner on slow networks).
+    final cachedRole = storage.role ?? 'user';
+    state = AuthAuthenticated(
+      profile: UserProfile(id: '', phone: '', role: cachedRole),
+    );
+
+    // Background refresh — updates role + profile without blocking the UI.
+    try {
+      final profile = await ref.read(authRepositoryProvider).getMe();
+      await storage.writeRole(profile.role);
+      if (state is AuthAuthenticated) {
+        state = AuthAuthenticated(profile: profile);
+      }
+    } on ServerError catch (e) {
+      if (e.isUnauthorised) {
+        await storage.clear();
+        state = const AuthUnauthenticated();
+      }
+      // Any other server error: keep the optimistic state.
+    } catch (_) {
+      // NetworkError / unknown: cached state is already showing, do nothing.
+    }
   }
 
-  static const _inactivityDuration = Duration(minutes: 10);
-  Timer? _inactivityTimer;
+  DateTime? _lastRefresh;
 
-  /// Reset the 10-minute inactivity timer. Call on any user interaction.
-  void resetInactivityTimer() {
-    _inactivityTimer?.cancel();
+  /// Called on app resume (e.g. returning from gallery/camera).
+  /// Silently refreshes profile in the background — never clears the session.
+  /// Debounced to 10 s so brief backgrounding (image picker) is a no-op.
+  Future<void> refresh() async {
     if (state is! AuthAuthenticated) return;
-    _inactivityTimer = Timer(_inactivityDuration, logout);
-  }
-
-  /// Re-runs on app resume — clears session so user must re-authenticate.
-  Future<void> refresh() {
-    return _init();
+    final now = DateTime.now();
+    if (_lastRefresh != null &&
+        now.difference(_lastRefresh!) < const Duration(seconds: 10)) {
+      return;
+    }
+    _lastRefresh = now;
+    // Background profile refresh — does not touch auth state on errors.
+    try {
+      final profile = await ref.read(authRepositoryProvider).getMe();
+      final storage = ref.read(tokenStorageProvider);
+      await storage.writeRole(profile.role);
+      if (state is AuthAuthenticated) {
+        state = AuthAuthenticated(profile: profile);
+      }
+    } on ServerError catch (e) {
+      if (e.isUnauthorised) {
+        await storage.clear();
+        state = const AuthUnauthenticated();
+      }
+    } catch (_) {
+      // Network hiccup on resume — keep the user logged in.
+    }
   }
 
   // ── OTP flow ─────────────────────────────────────────────────────────────
@@ -110,7 +150,6 @@ class AuthController extends Notifier<AuthState> {
       role: result.role,
     );
     state = AuthAuthenticated(profile: profile, isNewUser: result.isNewUser);
-    resetInactivityTimer();
   }
 
   // ── Email / password flow ─────────────────────────────────────────────────
@@ -125,10 +164,9 @@ class AuthController extends Notifier<AuthState> {
     await storage.writeRole(result.role);
     final profile = UserProfile(id: '', phone: identifier, role: result.role);
     state = AuthAuthenticated(profile: profile, isNewUser: result.isNewUser);
-    resetInactivityTimer();
   }
 
-  /// Registers a new account. Does NOT authenticate — caller must redirect to login.
+  /// Registers a new account. Does NOT authenticate — caller redirects to login.
   Future<void> register({
     required String name,
     required String email,
@@ -146,19 +184,14 @@ class AuthController extends Notifier<AuthState> {
     final storage = ref.read(tokenStorageProvider);
     await storage.writeRegistration(
         name: name, email: email, mobile: mobile, city: city);
-    // State stays unauthenticated — user must log in after registration.
   }
 
   // ── Session termination ───────────────────────────────────────────────────
 
   Future<void> logout() async {
-    _inactivityTimer?.cancel();
     await ref.read(tokenStorageProvider).clear();
     state = const AuthUnauthenticated();
   }
 
-  void forceLogout() {
-    _inactivityTimer?.cancel();
-    state = const AuthUnauthenticated();
-  }
+  void forceLogout() => state = const AuthUnauthenticated();
 }

@@ -56,16 +56,11 @@ class _AppState extends ConsumerState<App> {
 
       // Global offline banner — sits above all screens via the builder hook.
       // Takes zero height when online; slides in when connectivity is lost.
-      builder: (context, child) => Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: (_) =>
-            ref.read(authControllerProvider.notifier).resetInactivityTimer(),
-        child: Column(
-          children: [
-            const OfflineBanner(),
-            Expanded(child: child ?? const SizedBox()),
-          ],
-        ),
+      builder: (context, child) => Column(
+        children: [
+          const OfflineBanner(),
+          Expanded(child: child ?? const SizedBox()),
+        ],
       ),
 
       // i18n
