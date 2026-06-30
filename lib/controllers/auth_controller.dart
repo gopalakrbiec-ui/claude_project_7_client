@@ -112,10 +112,10 @@ class AuthController extends Notifier<AuthState> {
       return;
     }
     _lastRefresh = now;
+    final storage = ref.read(tokenStorageProvider);
     // Background profile refresh — does not touch auth state on errors.
     try {
       final profile = await ref.read(authRepositoryProvider).getMe();
-      final storage = ref.read(tokenStorageProvider);
       await storage.writeRole(profile.role);
       if (state is AuthAuthenticated) {
         state = AuthAuthenticated(profile: profile);
