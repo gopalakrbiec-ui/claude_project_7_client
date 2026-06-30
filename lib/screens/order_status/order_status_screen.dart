@@ -375,67 +375,12 @@ class _ShiningPollingBodyState extends State<_ShiningPollingBody>
           ),
         ),
 
-        // DEBUG overlay — only shown in debug builds
-        if (kDebugMode)
-          Positioned(
-            bottom: 90,
-            left: 12,
-            right: 12,
-            child: _DebugInfoPanel(state: widget.state),
-          ),
       ],
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Debug overlay (debug builds only)
-// ---------------------------------------------------------------------------
 
-class _DebugInfoPanel extends StatelessWidget {
-  const _DebugInfoPanel({required this.state});
-  final OrderStatusState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final lines = <String>[
-      'attempt: ${state.attemptCount}',
-      'status: ${state.order?.status ?? '—'}',
-      'orderId: ${state.order?.id ?? '—'}',
-      if (state.currentDelay != null)
-        'next poll in: ${state.currentDelay!.inSeconds}s',
-      if (state.lastPollError != null)
-        'last error: ${state.lastPollError}',
-    ];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.72),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            '🐛 DEBUG — Order Status',
-            style: TextStyle(color: Colors.yellowAccent, fontSize: 11, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          ...lines.map((l) => Text(
-            l,
-            style: TextStyle(
-              color: l.contains('error') ? Colors.redAccent : Colors.white70,
-              fontSize: 11,
-              fontFamily: 'monospace',
-            ),
-          )),
-        ],
-      ),
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 

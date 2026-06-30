@@ -20,29 +20,27 @@ class BalanceChip extends ConsumerWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+      padding: const EdgeInsets.only(right: 4, top: 6, bottom: 6),
       child: GestureDetector(
-        // Tap to go to the top-up screen.
         onTap: () => context.go('/home/topup'),
         child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
             color: Colors.white24,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.account_balance_wallet_outlined,
-                  size: 16, color: Colors.white),
-              const SizedBox(width: 4),
+              const Icon(Icons.monetization_on_rounded,
+                  size: 22, color: Color(0xFFFFD700)),
+              const SizedBox(width: 5),
               Text(
                 label,
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 15,
                 ),
               ),
             ],

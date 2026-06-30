@@ -43,6 +43,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final isAgent = authState is AuthAuthenticated && authState.profile.isAgent;
 
     return Scaffold(
+      appBar: _HomeAppBar(isAgent: isAgent),
       body: IndexedStack(
         index: _tab,
         children: [
@@ -238,10 +239,12 @@ class _ProfileBadgeButton extends ConsumerWidget {
     );
     return IconButton(
       onPressed: onTap,
+      iconSize: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       icon: Badge(
         isLabelVisible: hasCompleted,
         backgroundColor: Colors.red,
-        child: const Icon(Icons.account_circle_outlined),
+        child: const Icon(Icons.account_circle_outlined, size: 36),
       ),
     );
   }
@@ -260,7 +263,6 @@ class _HomeTab extends ConsumerWidget {
     final controller = ref.read(groupedTemplatesProvider.notifier);
 
     return Scaffold(
-      appBar: _HomeAppBar(isAgent: isAgent),
       body: RefreshIndicator(
         color: kSaffron,
         onRefresh: controller.refresh,
@@ -445,49 +447,47 @@ class _VideoTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Video')),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 88,
-              height: 88,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [kSaffron, kMagenta],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 88,
+            height: 88,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [kSaffron, kMagenta],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: const Icon(Icons.video_library_outlined,
-                  color: Colors.white, size: 44),
+              borderRadius: BorderRadius.circular(24),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Video Generation',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w700),
+            child: const Icon(Icons.video_library_outlined,
+                color: Colors.white, size: 44),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Video Generation',
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Coming soon! Create beautiful\nvideo memories with AI.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 15,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Coming soon! Create beautiful\nvideo memories with AI.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: 15,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
-}
 
 // ---------------------------------------------------------------------------
 // My Orders screen — navigated to from Profile
