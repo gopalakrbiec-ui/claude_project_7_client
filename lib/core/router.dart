@@ -149,12 +149,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const ToolsScreen(),
           ),
           GoRoute(
-            path: 'tools/:tool',
-            builder: (_, state) => ToolWorkScreen(
-              toolName: state.pathParameters['tool']!,
-            ),
-          ),
-          GoRoute(
             path: 'profile',
             builder: (_, __) => const ProfileScreen(),
           ),

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/dio_client.dart';
@@ -13,73 +14,121 @@ final toolsRepositoryProvider = Provider<ToolsRepository>((ref) {
   return ToolsRepository(dio);
 });
 
-class ToolResult {
-  const ToolResult({required this.resultUrl, required this.costPaise});
-  final String resultUrl;
-  final int costPaise;
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
 
-  String get costDisplay {
-    final r = costPaise / 100;
+class AiToolDef {
+  const AiToolDef({
+    required this.id,
+    required this.name,
+    required this.provider,
+    required this.costPaise,
+    required this.costDisplay,
+    required this.needsPhoto,
+    required this.needsPrompt,
+    required this.needsTargetPhoto,
+  });
+
+  final String id;
+  final String name;
+  final String provider;
+  final int costPaise;
+  final String costDisplay;
+  final bool needsPhoto;
+  final bool needsPrompt;
+  final bool needsTargetPhoto;
+
+  factory AiToolDef.fromJson(Map<String, dynamic> json) => AiToolDef(
+        id: json['id']?.toString() ?? '',
+        name: json['name']?.toString() ?? '',
+        provider: json['provider']?.toString() ?? '',
+        costPaise: (json['cost_paise'] as num?)?.toInt() ?? 0,
+        costDisplay: json['cost_display']?.toString() ??
+            _formatPaise((json['cost_paise'] as num?)?.toInt() ?? 0),
+        needsPhoto: json['needs_photo'] as bool? ?? true,
+        needsPrompt: json['needs_prompt'] as bool? ?? false,
+        needsTargetPhoto: json['needs_target_photo'] as bool? ?? false,
+      );
+
+  static String _formatPaise(int paise) {
+    final r = paise / 100;
     return r == r.truncateToDouble() ? '₹${r.toInt()}' : '₹${r.toStringAsFixed(2)}';
   }
+}
+
+class ToolResult {
+  const ToolResult({required this.resultUrl, required this.costDisplay});
+  final String resultUrl;
+  final String costDisplay;
 
   factory ToolResult.fromJson(Map<String, dynamic> json) => ToolResult(
-        resultUrl: json['result_url'] as String,
-        costPaise: (json['cost_paise'] as num).toInt(),
+        resultUrl: json['result_url']?.toString() ?? '',
+        costDisplay: json['cost_display']?.toString() ??
+            AiToolDef._formatPaise((json['cost_paise'] as num?)?.toInt() ?? 0),
       );
 }
+
+// ---------------------------------------------------------------------------
+// Repository
+// ---------------------------------------------------------------------------
 
 class ToolsRepository {
   ToolsRepository(this._dio);
   final Dio _dio;
 
-  Future<ToolResult> faceSwap({
-    required String sourcePhotoKey,
-    required String targetImageUrl,
+  Future<List<AiToolDef>> getTools() async {
+    try {
+      final response = await _dio.get<dynamic>('/tools');
+      final data = response.data;
+      if (data is List) {
+        return data
+            .whereType<Map<String, dynamic>>()
+            .map(AiToolDef.fromJson)
+            .toList();
+      }
+      if (data is Map && data['tools'] is List) {
+        return (data['tools'] as List)
+            .whereType<Map<String, dynamic>>()
+            .map(AiToolDef.fromJson)
+            .toList();
+      }
+      return [];
+    } on DioException catch (e) {
+      throw DioClient.handleDioError(e);
+    }
+  }
+
+  /// Upload a photo and return the server-side key.
+  Future<String> uploadPhoto(File photo) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(photo.path, filename: 'photo.jpg'),
+      });
+      final response =
+          await _dio.post<Map<String, dynamic>>('/uploads/photo', data: formData);
+      return response.data!['photo_key'] as String;
+    } on DioException catch (e) {
+      throw DioClient.handleDioError(e);
+    }
+  }
+
+  /// Run a tool. Pass whichever params the tool needs.
+  Future<ToolResult> runTool(
+    String toolId, {
+    String? photoKey,
+    String? targetPhotoKey,
+    String? prompt,
   }) async {
     try {
-      final response = await _dio.post<Map<String, dynamic>>(
-        '/tools/face-swap',
-        data: {
-          'source_photo_key': sourcePhotoKey,
-          'target_image_url': targetImageUrl,
-        },
-      );
-      return ToolResult.fromJson(response.data!);
-    } on DioException catch (e) {
-      throw DioClient.handleDioError(e);
-    }
-  }
+      final body = <String, dynamic>{};
+      if (photoKey != null) body['photo_key'] = photoKey;
+      if (targetPhotoKey != null) body['target_photo_key'] = targetPhotoKey;
+      if (prompt != null && prompt.isNotEmpty) body['prompt'] = prompt;
 
-  Future<ToolResult> restorePhoto(String photoKey) async {
-    try {
       final response = await _dio.post<Map<String, dynamic>>(
-        '/tools/restore',
-        data: {'photo_key': photoKey},
-      );
-      return ToolResult.fromJson(response.data!);
-    } on DioException catch (e) {
-      throw DioClient.handleDioError(e);
-    }
-  }
-
-  Future<ToolResult> removeBackground(String photoKey) async {
-    try {
-      final response = await _dio.post<Map<String, dynamic>>(
-        '/tools/bg-remove',
-        data: {'photo_key': photoKey},
-      );
-      return ToolResult.fromJson(response.data!);
-    } on DioException catch (e) {
-      throw DioClient.handleDioError(e);
-    }
-  }
-
-  Future<ToolResult> upscale(String photoKey, {int scale = 4}) async {
-    try {
-      final response = await _dio.post<Map<String, dynamic>>(
-        '/tools/upscale',
-        data: {'photo_key': photoKey, 'scale': scale},
+        '/tools/$toolId',
+        data: body,
       );
       return ToolResult.fromJson(response.data!);
     } on DioException catch (e) {
