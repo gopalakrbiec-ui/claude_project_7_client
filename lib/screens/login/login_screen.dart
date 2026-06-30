@@ -28,6 +28,67 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  void _showForgotPassword(BuildContext context) {
+    final emailCtrl = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+            24, 24, 24, MediaQuery.viewInsetsOf(ctx).bottom + 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Reset Password',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            const Text(
+                'Enter your registered email or mobile number. We\'ll send you a password reset link.',
+                style: TextStyle(fontSize: 14, color: Colors.black54)),
+            const SizedBox(height: 20),
+            TextField(
+              controller: emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: 'Email or Mobile Number',
+                prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                filled: true,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        'If this account exists, a reset link has been sent.'),
+                    duration: Duration(seconds: 4),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6B23),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: const Text('Send Reset Link',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
@@ -166,7 +227,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () {},
+                        onPressed: () => _showForgotPassword(context),
                         style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 0, vertical: 4)),
@@ -213,34 +274,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 style: TextStyle(
                                     fontSize: 17,
                                     fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    Row(children: [
-                      const Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('OR',
-                            style: TextStyle(
-                                color: theme.colorScheme.onSurfaceVariant,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                      const Expanded(child: Divider()),
-                    ]),
-
-                    const SizedBox(height: 14),
-
-                    OutlinedButton.icon(
-                      onPressed: () => context.go('/login/phone'),
-                      icon: const Icon(Icons.smartphone_rounded, size: 18),
-                      label: const Text('Login with OTP instead'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
                       ),
                     ),
 

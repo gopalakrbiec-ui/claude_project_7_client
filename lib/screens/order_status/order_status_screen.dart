@@ -598,26 +598,25 @@ class _DoneBody extends StatelessWidget {
 
     return Column(
       children: [
-        // Result image — takes ~55% of screen
+        // Result image — takes the majority of the screen
         Expanded(
-          flex: 55,
           child: _ResultImage(url: displayUrl),
         ),
 
         // Gradient success banner
         Container(
           decoration: const BoxDecoration(gradient: kBrandGradient),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
+              const Icon(Icons.auto_awesome, color: Colors.white, size: 16),
+              const SizedBox(width: 6),
               Text(
                 hasCleanVersion ? 'Watermark Removed!' : 'Your design is ready!',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 17,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -625,64 +624,59 @@ class _DoneBody extends StatelessWidget {
           ),
         ),
 
-        // Action panel
-        Expanded(
-          flex: 45,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-                kSpaceLg, kSpaceMd, kSpaceLg, kSpaceLg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Primary CTA: WhatsApp (the growth loop)
-                ElevatedButton.icon(
-                  onPressed: isDownloading ? null : onShare,
-                  icon: isDownloading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.share_rounded),
-                  label: const Text('Share on WhatsApp'),
-                ),
-                const SizedBox(height: kSpaceSm),
-
-                OutlinedButton.icon(
-                  onPressed: isDownloading ? null : onSave,
-                  icon: const Icon(Icons.save_alt_rounded),
-                  label: const Text('Save to Phone'),
-                ),
-
-                if (!hasCleanVersion) ...[
-                  const SizedBox(height: kSpaceSm),
-                  if (state.errorMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: kSpaceXs),
-                      child: Text(
-                        state.errorMessage!,
-                        style: TextStyle(
-                            color: theme.colorScheme.error, fontSize: 13),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  TextButton.icon(
-                    onPressed: isRemoving ? null : onRemoveWatermark,
-                    icon: isRemoving
+        // Compact action row
+        Container(
+          color: theme.colorScheme.surface,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _ActionButton(
+                    icon: isDownloading
                         ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.auto_fix_high_outlined),
-                    label: Text(
-                      isRemoving
-                          ? 'Removing watermark…'
-                          : 'Remove Watermark  •  $priceDisplay',
-                    ),
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2.5))
+                        : const Icon(Icons.share_rounded, size: 26,
+                            color: Color(0xFFFF6B23)),
+                    label: 'WhatsApp',
+                    onTap: isDownloading ? null : onShare,
                   ),
+                  _ActionButton(
+                    icon: const Icon(Icons.save_alt_rounded, size: 26,
+                        color: Color(0xFFFF6B23)),
+                    label: 'Save',
+                    onTap: isDownloading ? null : onSave,
+                  ),
+                  if (!hasCleanVersion)
+                    _ActionButton(
+                      icon: isRemoving
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2.5))
+                          : const Icon(Icons.auto_fix_high_outlined, size: 26,
+                              color: Color(0xFFFF6B23)),
+                      label: isRemoving
+                          ? 'Removing…'
+                          : 'No Watermark\n$priceDisplay',
+                      onTap: isRemoving ? null : onRemoveWatermark,
+                    ),
                 ],
+              ),
+              if (state.errorMessage != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  state.errorMessage!,
+                  style:
+                      TextStyle(color: theme.colorScheme.error, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
               ],
-            ),
+            ],
           ),
         ),
       ],
@@ -716,7 +710,7 @@ class _ResultImage extends StatelessWidget {
             (constraints.maxWidth * dpr).clamp(1.0, 1080.0).toInt();
         return CachedNetworkImage(
           imageUrl: url!,
-          fit: BoxFit.contain,
+          fit: BoxFit.cover,
           memCacheWidth: cacheWidth,
           placeholder: (_, __) =>
               const Center(child: CircularProgressIndicator()),
@@ -724,6 +718,43 @@ class _ResultImage extends StatelessWidget {
               child: Icon(Icons.broken_image_outlined, size: 72)),
         );
       },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final Widget icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            icon,
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
