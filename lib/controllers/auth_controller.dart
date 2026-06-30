@@ -140,6 +140,41 @@ class AuthController extends Notifier<AuthState> {
     state = AuthAuthenticated(profile: profile, isNewUser: result.isNewUser);
   }
 
+  // ── Email / password flow ─────────────────────────────────────────────────
+
+  Future<void> loginWithPassword(
+      {required String identifier, required String password}) async {
+    final result = await ref
+        .read(authRepositoryProvider)
+        .loginWithPassword(identifier: identifier, password: password);
+    final storage = ref.read(tokenStorageProvider);
+    await storage.writeToken(result.accessToken);
+    await storage.writeRole(result.role);
+    final profile = UserProfile(id: '', phone: '', role: result.role);
+    state = AuthAuthenticated(profile: profile, isNewUser: result.isNewUser);
+  }
+
+  Future<void> register({
+    required String name,
+    required String email,
+    required String mobile,
+    required String city,
+    required String password,
+  }) async {
+    final result = await ref.read(authRepositoryProvider).register(
+          name: name,
+          email: email,
+          mobile: mobile,
+          city: city,
+          password: password,
+        );
+    final storage = ref.read(tokenStorageProvider);
+    await storage.writeToken(result.accessToken);
+    await storage.writeRole(result.role);
+    final profile = UserProfile(id: '', phone: mobile, role: result.role);
+    state = AuthAuthenticated(profile: profile, isNewUser: true);
+  }
+
   // ── Session termination ───────────────────────────────────────────────────
 
   Future<void> logout() async {

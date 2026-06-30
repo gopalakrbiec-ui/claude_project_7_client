@@ -61,6 +61,45 @@ class AuthRepository {
     }
   }
 
+  /// POST /auth/login — email/phone + password login; throws [ApiError].
+  Future<VerifyOtpResult> loginWithPassword(
+      {required String identifier, required String password}) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/auth/login',
+        data: {'identifier': identifier, 'password': password},
+      );
+      return VerifyOtpResult.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw DioClient.handleDioError(e);
+    }
+  }
+
+  /// POST /auth/register — create a new account; throws [ApiError].
+  Future<VerifyOtpResult> register({
+    required String name,
+    required String email,
+    required String mobile,
+    required String city,
+    required String password,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/auth/register',
+        data: {
+          'name': name,
+          'email': email,
+          'mobile': mobile,
+          'city': city,
+          'password': password,
+        },
+      );
+      return VerifyOtpResult.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw DioClient.handleDioError(e);
+    }
+  }
+
   /// GET /auth/me — returns [UserProfile]; throws [ApiError].
   /// Call on every app launch and resume (CLAUDE.md contract rule).
   Future<UserProfile> getMe() async {

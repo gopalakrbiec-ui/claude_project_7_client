@@ -5,6 +5,7 @@ import '../controllers/auth_controller.dart';
 import '../controllers/locale_controller.dart';
 import '../screens/language_select/language_select_screen.dart';
 import '../models/template.dart';
+import '../screens/login/login_screen.dart';
 import '../screens/login/phone_entry_screen.dart';
 import '../screens/login/otp_entry_screen.dart';
 import '../screens/login/signup_screen.dart';
@@ -84,11 +85,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const SignupScreen(),
       ),
 
-      // ── Login flow (two-step: phone → OTP) ──────────────────────────────
+      // ── Login flow ───────────────────────────────────────────────────────
       GoRoute(
         path: '/login',
-        builder: (_, __) => const PhoneEntryScreen(),
+        builder: (_, __) => const LoginScreen(),
         routes: [
+          GoRoute(
+            path: 'phone',
+            builder: (_, __) => const PhoneEntryScreen(),
+          ),
           GoRoute(
             path: 'otp',
             builder: (_, state) {
