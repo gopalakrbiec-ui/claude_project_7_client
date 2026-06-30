@@ -25,13 +25,130 @@ final _toolsListProvider = FutureProvider.autoDispose<List<AiToolDef>>((ref) {
 });
 
 // ---------------------------------------------------------------------------
+// Per-tool input configuration (hardcoded — backend flags are unreliable)
+// ---------------------------------------------------------------------------
+class _ToolInputConfig {
+  const _ToolInputConfig({
+    required this.needsPhoto,
+    required this.needsTargetPhoto,
+    required this.needsPrompt,
+    this.photoLabel = 'Your Photo',
+    this.targetLabel = 'Style / Target Photo',
+    this.promptLabel = 'Describe what you want',
+    this.promptHint = 'Describe the result you want…',
+  });
+
+  final bool needsPhoto;
+  final bool needsTargetPhoto;
+  final bool needsPrompt;
+  final String photoLabel;
+  final String targetLabel;
+  final String promptLabel;
+  final String promptHint;
+}
+
+_ToolInputConfig _configFor(AiToolDef tool) {
+  final n = tool.name.toLowerCase();
+  if (n.contains('face swap')) {
+    return const _ToolInputConfig(
+      needsPhoto: true,
+      needsTargetPhoto: true,
+      needsPrompt: false,
+      photoLabel: 'Your Face Photo',
+      targetLabel: 'Target Face Photo (to swap onto)',
+    );
+  }
+  if (n.contains('ai filter') || n.contains('filter')) {
+    return const _ToolInputConfig(
+      needsPhoto: true,
+      needsTargetPhoto: false,
+      needsPrompt: true,
+      promptLabel: 'Filter Style',
+      promptHint: 'e.g. oil painting, anime, watercolor, vintage…',
+    );
+  }
+  if (n.contains('bg remove') || n.contains('background remove')) {
+    return const _ToolInputConfig(
+      needsPhoto: true,
+      needsTargetPhoto: false,
+      needsPrompt: false,
+    );
+  }
+  if (n.contains('background') || n.contains('ai background')) {
+    return const _ToolInputConfig(
+      needsPhoto: true,
+      needsTargetPhoto: false,
+      needsPrompt: true,
+      promptLabel: 'New Background Description',
+      promptHint: 'e.g. beach at sunset, mountain forest, city skyline…',
+    );
+  }
+  if (n.contains('upscale') || n.contains('hd')) {
+    return const _ToolInputConfig(
+      needsPhoto: true,
+      needsTargetPhoto: false,
+      needsPrompt: false,
+    );
+  }
+  if (n.contains('restore')) {
+    return const _ToolInputConfig(
+      needsPhoto: true,
+      needsTargetPhoto: false,
+      needsPrompt: false,
+    );
+  }
+  if (n.contains('outfit')) {
+    return const _ToolInputConfig(
+      needsPhoto: true,
+      needsTargetPhoto: true,
+      needsPrompt: false,
+      photoLabel: 'Your Photo',
+      targetLabel: 'Target Outfit Photo',
+    );
+  }
+  if (n.contains('hair')) {
+    return const _ToolInputConfig(
+      needsPhoto: true,
+      needsTargetPhoto: false,
+      needsPrompt: true,
+      promptLabel: 'Hair Colour / Style',
+      promptHint: 'e.g. black wavy, blonde straight, short curly brown…',
+    );
+  }
+  if (n.contains('remix')) {
+    return const _ToolInputConfig(
+      needsPhoto: true,
+      needsTargetPhoto: false,
+      needsPrompt: true,
+      promptLabel: 'Remix Style',
+      promptHint: 'Describe how you want to transform the photo…',
+    );
+  }
+  if (n.contains('text to image') || n.contains('text-to-image')) {
+    return const _ToolInputConfig(
+      needsPhoto: false,
+      needsTargetPhoto: false,
+      needsPrompt: true,
+      promptLabel: 'Describe the image',
+      promptHint: 'e.g. A beautiful sunset over the Himalayas with golden light…',
+    );
+  }
+  // Fallback: honour server flags
+  return _ToolInputConfig(
+    needsPhoto: tool.needsPhoto,
+    needsTargetPhoto: tool.needsTargetPhoto,
+    needsPrompt: tool.needsPrompt,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Icon / gradient helpers keyed by tool name
 // ---------------------------------------------------------------------------
 IconData _iconFor(String name) {
   final n = name.toLowerCase();
   if (n.contains('face')) return Icons.face_retouching_natural;
   if (n.contains('filter')) return Icons.auto_fix_high;
-  if (n.contains('bg remove') || n.contains('bg_remove') || n.contains('background remove')) return Icons.layers_clear_outlined;
+  if (n.contains('bg remove') || n.contains('background remove')) return Icons.layers_clear_outlined;
   if (n.contains('background')) return Icons.wallpaper_rounded;
   if (n.contains('upscale') || n.contains('hd')) return Icons.hd_outlined;
   if (n.contains('restore')) return Icons.auto_fix_high_outlined;
@@ -46,7 +163,7 @@ List<Color> _gradientFor(String name) {
   final n = name.toLowerCase();
   if (n.contains('face')) return [const Color(0xFF1565C0), const Color(0xFF42A5F5)];
   if (n.contains('filter')) return [const Color(0xFF6A1B9A), const Color(0xFFCE93D8)];
-  if (n.contains('bg remove') || n.contains('background remove') || n.contains('bg_remove')) {
+  if (n.contains('bg remove') || n.contains('background remove')) {
     return [const Color(0xFF2E7D32), const Color(0xFF66BB6A)];
   }
   if (n.contains('background')) return [const Color(0xFF00695C), const Color(0xFF4DB6AC)];
@@ -196,6 +313,8 @@ class ToolWorkScreen extends ConsumerStatefulWidget {
 }
 
 class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
+  late final _ToolInputConfig _cfg = _configFor(widget.tool);
+
   final _picker = ImagePicker();
   final _promptCtrl = TextEditingController();
 
@@ -218,12 +337,13 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
     super.dispose();
   }
 
-  bool get _canRun =>
-      !_uploadingSource &&
-      !_uploadingTarget &&
-      !_processing &&
-      (!widget.tool.needsPhoto || _sourcePhotoKey != null) &&
-      (!widget.tool.needsTargetPhoto || _targetPhotoKey != null);
+  bool get _canRun {
+    if (_uploadingSource || _uploadingTarget || _processing) return false;
+    if (_cfg.needsPhoto && _sourcePhotoKey == null) return false;
+    if (_cfg.needsTargetPhoto && _targetPhotoKey == null) return false;
+    if (_cfg.needsPrompt && _promptCtrl.text.trim().isEmpty) return false;
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -239,15 +359,15 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (widget.tool.needsPhoto) ...[
-              Text('Your Photo',
+            if (_cfg.needsPhoto) ...[
+              Text(_cfg.photoLabel,
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: kSpaceSm),
               _PhotoPicker(
                 photo: _sourcePhoto,
                 uploading: _uploadingSource,
-                hint: 'Tap to pick your photo',
+                hint: 'Tap to pick photo',
                 onPick: () => _pickPhoto(isTarget: false),
                 onClear: () => setState(() {
                   _sourcePhoto = null;
@@ -259,15 +379,15 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
               const SizedBox(height: kSpaceMd),
             ],
 
-            if (widget.tool.needsTargetPhoto) ...[
-              Text('Style / Target Photo',
+            if (_cfg.needsTargetPhoto) ...[
+              Text(_cfg.targetLabel,
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: kSpaceSm),
               _PhotoPicker(
                 photo: _targetPhoto,
                 uploading: _uploadingTarget,
-                hint: 'Tap to pick style / target photo',
+                hint: 'Tap to pick photo',
                 onPick: () => _pickPhoto(isTarget: true),
                 onClear: () => setState(() {
                   _targetPhoto = null;
@@ -277,16 +397,17 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
               const SizedBox(height: kSpaceMd),
             ],
 
-            if (widget.tool.needsPrompt) ...[
-              Text('Describe what you want',
+            if (_cfg.needsPrompt) ...[
+              Text(_cfg.promptLabel,
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: kSpaceSm),
               TextField(
                 controller: _promptCtrl,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText: 'e.g. A beautiful sunset over mountains…',
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: _cfg.promptHint,
                 ),
               ),
               const SizedBox(height: kSpaceMd),
@@ -400,9 +521,9 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
     try {
       final result = await ref.read(toolsRepositoryProvider).runTool(
             widget.tool.id,
-            photoKey: _sourcePhotoKey,
-            targetPhotoKey: _targetPhotoKey,
-            prompt: widget.tool.needsPrompt ? _promptCtrl.text : null,
+            photoKey: _cfg.needsPhoto ? _sourcePhotoKey : null,
+            targetPhotoKey: _cfg.needsTargetPhoto ? _targetPhotoKey : null,
+            prompt: _cfg.needsPrompt ? _promptCtrl.text.trim() : null,
           );
       if (mounted) {
         setState(() {

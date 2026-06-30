@@ -39,9 +39,15 @@ class DioClient {
 
       // 402 insufficient_balance — parse available/required paise.
       if (response.statusCode == 402 && body is Map) {
+        int parsePaise(String key) {
+          final v = body[key];
+          if (v is num) return v.toInt();
+          if (v is String) return (double.tryParse(v)?.toInt()) ?? 0;
+          return 0;
+        }
         return InsufficientCreditsError(
-          availablePaise: (body['available_paise'] as num?)?.toInt() ?? 0,
-          requiredPaise: (body['required_paise'] as num?)?.toInt() ?? 0,
+          availablePaise: parsePaise('available_paise'),
+          requiredPaise: parsePaise('required_paise'),
         );
       }
 
