@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_error.dart';
 import '../core/token_storage.dart';
@@ -64,57 +66,27 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> _doInit() async {
-    // Ensure at least one async hop before setting state. If _doInit() completes
-    // synchronously (e.g. token == null path has no awaits), Riverpod overwrites
-    // our state assignment with build()'s return value (AuthInitializing).
     await Future<void>.value();
     final storage = ref.read(tokenStorageProvider);
-    final token = storage.token;
 
-    if (token == null) {
-      state = const AuthUnauthenticated();
-      return;
-    }
-
-    // Optimistic restore: immediately show the app with the cached role while
-    // GET /auth/me runs in the background. This prevents the splash from
-    // spinning for up to 30 s on slow networks or a cold Railway start.
-    final cachedRole = storage.role ?? 'user';
-    state = AuthAuthenticated(
-      profile: UserProfile(id: '', phone: '', role: cachedRole),
-    );
-
-    // Background refresh — updates role and profile without blocking the UI.
-    try {
-      final profile = await ref.read(authRepositoryProvider).getMe();
-      await storage.writeRole(profile.role);
-      // Only update state if we're still authenticated (user didn't log out).
-      if (state is AuthAuthenticated) {
-        state = AuthAuthenticated(profile: profile);
-      }
-    } on ServerError catch (e) {
-      if (e.isUnauthorised) {
-        await storage.clear();
-        state = const AuthUnauthenticated();
-      }
-      // Any other server error: keep the optimistic state already set.
-    } catch (_) {
-      // NetworkError or unknown: cached state is already showing, do nothing.
-    }
+    // Always require re-login on cold start (app killed / closed).
+    // The token is cleared so the user must authenticate every session.
+    await storage.clearToken();
+    state = const AuthUnauthenticated();
   }
 
-  DateTime? _lastRefresh;
+  static const _inactivityDuration = Duration(minutes: 10);
+  Timer? _inactivityTimer;
 
-  /// Re-runs initialisation — call from AppLifecycleListener on resume.
-  /// Debounced to 10 s so opening the image picker (which briefly backgrounds
-  /// the app) doesn't trigger a redundant /auth/me call.
+  /// Reset the 10-minute inactivity timer. Call on any user interaction.
+  void resetInactivityTimer() {
+    _inactivityTimer?.cancel();
+    if (state is! AuthAuthenticated) return;
+    _inactivityTimer = Timer(_inactivityDuration, logout);
+  }
+
+  /// Re-runs on app resume — clears session so user must re-authenticate.
   Future<void> refresh() {
-    final now = DateTime.now();
-    if (_lastRefresh != null &&
-        now.difference(_lastRefresh!) < const Duration(seconds: 10)) {
-      return Future.value();
-    }
-    _lastRefresh = now;
     return _init();
   }
 
@@ -138,6 +110,7 @@ class AuthController extends Notifier<AuthState> {
       role: result.role,
     );
     state = AuthAuthenticated(profile: profile, isNewUser: result.isNewUser);
+    resetInactivityTimer();
   }
 
   // ── Email / password flow ─────────────────────────────────────────────────
@@ -150,10 +123,12 @@ class AuthController extends Notifier<AuthState> {
     final storage = ref.read(tokenStorageProvider);
     await storage.writeToken(result.accessToken);
     await storage.writeRole(result.role);
-    final profile = UserProfile(id: '', phone: '', role: result.role);
+    final profile = UserProfile(id: '', phone: identifier, role: result.role);
     state = AuthAuthenticated(profile: profile, isNewUser: result.isNewUser);
+    resetInactivityTimer();
   }
 
+  /// Registers a new account. Does NOT authenticate — caller must redirect to login.
   Future<void> register({
     required String name,
     required String email,
@@ -161,7 +136,7 @@ class AuthController extends Notifier<AuthState> {
     required String city,
     required String password,
   }) async {
-    final result = await ref.read(authRepositoryProvider).register(
+    await ref.read(authRepositoryProvider).register(
           name: name,
           email: email,
           mobile: mobile,
@@ -169,18 +144,21 @@ class AuthController extends Notifier<AuthState> {
           password: password,
         );
     final storage = ref.read(tokenStorageProvider);
-    await storage.writeToken(result.accessToken);
-    await storage.writeRole(result.role);
-    final profile = UserProfile(id: '', phone: mobile, role: result.role);
-    state = AuthAuthenticated(profile: profile, isNewUser: true);
+    await storage.writeRegistration(
+        name: name, email: email, mobile: mobile, city: city);
+    // State stays unauthenticated — user must log in after registration.
   }
 
   // ── Session termination ───────────────────────────────────────────────────
 
   Future<void> logout() async {
-    await ref.read(tokenStorageProvider).clear();
+    _inactivityTimer?.cancel();
+    await ref.read(tokenStorageProvider).clearToken();
     state = const AuthUnauthenticated();
   }
 
-  void forceLogout() => state = const AuthUnauthenticated();
+  void forceLogout() {
+    _inactivityTimer?.cancel();
+    state = const AuthUnauthenticated();
+  }
 }

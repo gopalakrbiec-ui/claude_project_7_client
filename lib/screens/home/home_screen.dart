@@ -148,7 +148,7 @@ class _HomeAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final bool isAgent;
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => const Size.fromHeight(64);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -157,8 +157,10 @@ class _HomeAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
     String displayName = '';
     if (authState is AuthAuthenticated) {
+      final storedName = storage.name;
       final firstName = storage.firstName;
-      displayName = authState.profile.name ??
+      displayName = storedName ??
+          authState.profile.name ??
           (firstName != null && firstName.isNotEmpty
               ? firstName
               : authState.profile.phone);
@@ -168,39 +170,49 @@ class _HomeAppBar extends ConsumerWidget implements PreferredSizeWidget {
       backgroundColor: kDarkSurface,
       foregroundColor: Colors.white,
       iconTheme: const IconThemeData(color: Colors.white),
+      toolbarHeight: 64,
       titleSpacing: kSpaceSm,
       title: Row(
         children: [
-          // Small app icon
+          // App icon
           Container(
-            width: 32,
-            height: 32,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [kSaffron, kMagenta],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.auto_awesome,
-                color: Colors.white, size: 18),
+                color: Colors.white, size: 26),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                const Text(
+                  'Yaadein',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.5,
+                  ),
+                ),
                 Text(
                   displayName.isNotEmpty
                       ? 'Welcome, $displayName'
                       : 'Welcome',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        color: Colors.white,
-                      ),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                    color: Colors.white,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

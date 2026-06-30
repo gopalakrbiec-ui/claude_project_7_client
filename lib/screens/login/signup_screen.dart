@@ -51,6 +51,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             city: _cityCtrl.text.trim(),
             password: _passwordCtrl.text,
           );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Account created successfully! Please log in.'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      context.go('/login');
     } on ServerError catch (e) {
       setState(() => _error = e.message);
     } on NetworkError catch (_) {

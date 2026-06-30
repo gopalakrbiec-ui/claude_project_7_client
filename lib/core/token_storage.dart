@@ -30,7 +30,9 @@ class TokenStorage {
   String? get role      => _prefs.getString(kRoleKey);
   String? get firstName => _prefs.getString('profile_first_name');
   String? get lastName  => _prefs.getString('profile_last_name');
+  String? get name      => _prefs.getString('profile_name');
   String? get email     => _prefs.getString('profile_email');
+  String? get mobile    => _prefs.getString('profile_mobile');
   String? get city      => _prefs.getString('profile_city');
   String? get country   => _prefs.getString('profile_country');
   String? get state     => _prefs.getString('profile_state');
@@ -39,6 +41,19 @@ class TokenStorage {
 
   Future<void> writeToken(String value) => _prefs.setString(kTokenKey, value);
   Future<void> writeRole(String value)  => _prefs.setString(kRoleKey, value);
+  Future<void> clearToken()             => _prefs.remove(kTokenKey);
+
+  Future<void> writeRegistration({
+    required String name,
+    required String email,
+    required String mobile,
+    required String city,
+  }) async {
+    await _prefs.setString('profile_name', name);
+    await _prefs.setString('profile_email', email);
+    await _prefs.setString('profile_mobile', mobile);
+    await _prefs.setString('profile_city', city);
+  }
 
   Future<void> writeProfile({
     required String firstName,
@@ -65,7 +80,9 @@ class TokenStorage {
     await _prefs.remove(kRoleKey);
     await _prefs.remove('profile_first_name');
     await _prefs.remove('profile_last_name');
+    await _prefs.remove('profile_name');
     await _prefs.remove('profile_email');
+    await _prefs.remove('profile_mobile');
     await _prefs.remove('profile_city');
     await _prefs.remove('profile_country');
     await _prefs.remove('profile_state');

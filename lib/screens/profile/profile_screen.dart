@@ -1,7 +1,11 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../controllers/auth_controller.dart';
 import '../../core/constants.dart';
@@ -15,6 +19,31 @@ final _profileOrdersProvider = FutureProvider.autoDispose<OrderListPage>((ref) {
   return ref.read(ordersRepositoryProvider).getOrders();
 });
 
+// Stores the local profile picture path chosen by the user.
+final _profilePicProvider =
+    StateNotifierProvider<_ProfilePicNotifier, String?>(_ProfilePicNotifier.new);
+
+class _ProfilePicNotifier extends StateNotifier<String?> {
+  _ProfilePicNotifier(Ref ref) : super(null) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getString('profile_pic_path');
+  }
+
+  Future<void> pick() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+        source: ImageSource.gallery, imageQuality: 80, maxWidth: 512);
+    if (picked == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('profile_pic_path', picked.path);
+    state = picked.path;
+  }
+}
+
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -23,9 +52,13 @@ class ProfileScreen extends ConsumerWidget {
     final authState = ref.watch(authControllerProvider);
     final storage = ref.read(tokenStorageProvider);
     final theme = Theme.of(context);
+    final picPath = ref.watch(_profilePicProvider);
 
+    final storedName = storage.name;
     final firstName = storage.firstName;
     final lastName = storage.lastName;
+    final email = storage.email;
+    final mobile = storage.mobile;
     final city = storage.city;
     final country = storage.country;
 
@@ -33,7 +66,8 @@ class ProfileScreen extends ConsumerWidget {
     String phone = '';
     if (authState is AuthAuthenticated) {
       phone = authState.profile.phone;
-      displayName = authState.profile.name ??
+      displayName = storedName ??
+          authState.profile.name ??
           (firstName != null
               ? '$firstName ${lastName ?? ''}'.trim()
               : phone);
@@ -53,18 +87,48 @@ class ProfileScreen extends ConsumerWidget {
             decoration: const BoxDecoration(gradient: kBrandGradient),
             child: Column(
               children: [
-                CircleAvatar(
-                  radius: 44,
-                  backgroundColor: Colors.white24,
-                  child: Text(
-                    displayName.isNotEmpty
-                        ? displayName[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                        fontSize: 36,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold),
-                  ),
+                Stack(
+                  children: [
+                    GestureDetector(
+                      onTap: () => ref.read(_profilePicProvider.notifier).pick(),
+                      child: CircleAvatar(
+                        radius: 48,
+                        backgroundColor: Colors.white24,
+                        backgroundImage: picPath != null
+                            ? FileImage(File(picPath))
+                            : null,
+                        child: picPath == null
+                            ? Text(
+                                displayName.isNotEmpty
+                                    ? displayName[0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(
+                                    fontSize: 36,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              )
+                            : null,
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: () =>
+                            ref.read(_profilePicProvider.notifier).pick(),
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.camera_alt,
+                              size: 16, color: Color(0xFFFF6B23)),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: kSpaceMd),
                 Text(
@@ -74,19 +138,36 @@ class ProfileScreen extends ConsumerWidget {
                       fontSize: 20,
                       fontWeight: FontWeight.w700),
                 ),
-                if (phone.isNotEmpty) ...[
+                if ((email ?? '').isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(phone,
+                  Text(email!,
                       style: const TextStyle(
-                          color: Colors.white70, fontSize: 14)),
+                          color: Colors.white70, fontSize: 13)),
                 ],
-                if (city != null && city.isNotEmpty) ...[
+                if ((mobile ?? phone).isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(mobile ?? phone,
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 13)),
+                ],
+                if ((city ?? '').isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    [city, country].where((s) => s != null && s.isNotEmpty).join(', '),
-                    style: const TextStyle(color: Colors.white60, fontSize: 13),
+                    [city, country]
+                        .where((s) => s != null && s.isNotEmpty)
+                        .join(', '),
+                    style: const TextStyle(color: Colors.white60, fontSize: 12),
                   ),
                 ],
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: () =>
+                      ref.read(_profilePicProvider.notifier).pick(),
+                  icon: const Icon(Icons.photo_library_outlined,
+                      color: Colors.white70, size: 16),
+                  label: const Text('Change photo',
+                      style: TextStyle(color: Colors.white70, fontSize: 13)),
+                ),
               ],
             ),
           ),
