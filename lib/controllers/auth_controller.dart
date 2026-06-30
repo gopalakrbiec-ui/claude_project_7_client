@@ -175,30 +175,6 @@ class AuthController extends Notifier<AuthState> {
     state = AuthAuthenticated(profile: profile, isNewUser: true);
   }
 
-  // ── Social auth ───────────────────────────────────────────────────────────
-
-  Future<bool> loginWithGoogle() async {
-    final result = await ref.read(authRepositoryProvider).loginWithGoogle();
-    if (result == null) return false; // user cancelled
-    final storage = ref.read(tokenStorageProvider);
-    await storage.writeToken(result.accessToken);
-    await storage.writeRole(result.role);
-    final profile = UserProfile(id: '', phone: '', role: result.role);
-    state = AuthAuthenticated(profile: profile, isNewUser: result.isNewUser);
-    return true;
-  }
-
-  Future<bool> loginWithFacebook() async {
-    final result = await ref.read(authRepositoryProvider).loginWithFacebook();
-    if (result == null) return false; // user cancelled
-    final storage = ref.read(tokenStorageProvider);
-    await storage.writeToken(result.accessToken);
-    await storage.writeRole(result.role);
-    final profile = UserProfile(id: '', phone: '', role: result.role);
-    state = AuthAuthenticated(profile: profile, isNewUser: result.isNewUser);
-    return true;
-  }
-
   // ── Session termination ───────────────────────────────────────────────────
 
   Future<void> logout() async {

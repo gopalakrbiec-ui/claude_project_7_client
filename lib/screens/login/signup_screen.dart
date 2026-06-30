@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../api/api_error.dart';
 import '../../controllers/auth_controller.dart';
-import '../../widgets/social_auth_button.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -25,7 +24,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool _obscurePass = true;
   bool _obscureConfirm = true;
   bool _loading = false;
-  bool _socialLoading = false;
   String? _error;
 
   @override
@@ -37,24 +35,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _socialLogin(Future<bool> Function() action) async {
-    setState(() {
-      _socialLoading = true;
-      _error = null;
-    });
-    try {
-      await action();
-    } on ServerError catch (e) {
-      setState(() => _error = e.message);
-    } on NetworkError catch (_) {
-      setState(() => _error = 'No internet connection. Please try again.');
-    } catch (_) {
-      setState(() => _error = 'Sign-in failed. Please try again.');
-    } finally {
-      if (mounted) setState(() => _socialLoading = false);
-    }
   }
 
   Future<void> _register() async {
@@ -251,48 +231,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       ),
                     ],
 
-                    const SizedBox(height: 16),
-
-                    Row(children: [
-                      const Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('OR sign up with',
-                            style: TextStyle(
-                                color: theme.colorScheme.onSurfaceVariant,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                      const Expanded(child: Divider()),
-                    ]),
-                    const SizedBox(height: 12),
-                    SocialAuthButton.google(
-                      loading: _socialLoading,
-                      onPressed: () => _socialLogin(
-                          () => ref.read(authControllerProvider.notifier).loginWithGoogle()),
-                    ),
-                    const SizedBox(height: 10),
-                    SocialAuthButton.facebook(
-                      loading: _socialLoading,
-                      onPressed: () => _socialLogin(
-                          () => ref.read(authControllerProvider.notifier).loginWithFacebook()),
-                    ),
-
                     const SizedBox(height: 20),
-
-                    Row(children: [
-                      const Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('OR fill form',
-                            style: TextStyle(
-                                color: theme.colorScheme.onSurfaceVariant,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                      const Expanded(child: Divider()),
-                    ]),
-                    const SizedBox(height: 16),
 
                     SizedBox(
                       height: 54,

@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../api/api_error.dart';
 import '../../controllers/auth_controller.dart';
-import '../../widgets/social_auth_button.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -20,7 +19,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   bool _obscure = true;
   bool _loading = false;
-  bool _socialLoading = false;
   String? _error;
 
   @override
@@ -28,24 +26,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _identifierCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _socialLogin(Future<bool> Function() action) async {
-    setState(() {
-      _socialLoading = true;
-      _error = null;
-    });
-    try {
-      await action();
-    } on ServerError catch (e) {
-      setState(() => _error = e.message);
-    } on NetworkError catch (_) {
-      setState(() => _error = 'No internet connection. Please try again.');
-    } catch (e) {
-      setState(() => _error = 'Sign-in failed. Please try again.');
-    } finally {
-      if (mounted) setState(() => _socialLoading = false);
-    }
   }
 
   Future<void> _login() async {
@@ -238,25 +218,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                     const SizedBox(height: 20),
 
-                    _orDivider(theme),
+                    Row(children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('OR',
+                            style: TextStyle(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                      const Expanded(child: Divider()),
+                    ]),
+
                     const SizedBox(height: 14),
 
-                    SocialAuthButton.google(
-                      loading: _socialLoading,
-                      onPressed: () => _socialLogin(
-                          () => ref.read(authControllerProvider.notifier).loginWithGoogle()),
-                    ),
-                    const SizedBox(height: 10),
-                    SocialAuthButton.facebook(
-                      loading: _socialLoading,
-                      onPressed: () => _socialLogin(
-                          () => ref.read(authControllerProvider.notifier).loginWithFacebook()),
-                    ),
-                    const SizedBox(height: 10),
                     OutlinedButton.icon(
-                      onPressed: _socialLoading ? null : () => context.go('/login/phone'),
+                      onPressed: () => context.go('/login/phone'),
                       icon: const Icon(Icons.smartphone_rounded, size: 18),
-                      label: const Text('Continue with OTP'),
+                      label: const Text('Login with OTP instead'),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
@@ -287,19 +267,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
-
-  Widget _orDivider(ThemeData theme) => Row(children: [
-        const Expanded(child: Divider()),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text('OR',
-              style: TextStyle(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600)),
-        ),
-        const Expanded(child: Divider()),
-      ]);
 
   InputDecoration _deco(BuildContext context,
       {required String label, required IconData icon}) {

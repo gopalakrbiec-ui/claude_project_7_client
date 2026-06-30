@@ -1,7 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import '../api/api_error.dart';
 import '../api/dio_client.dart';
 import '../controllers/auth_controller.dart';
@@ -95,50 +93,6 @@ class AuthRepository {
           'city': city,
           'password': password,
         },
-      );
-      return VerifyOtpResult.fromJson(response.data!);
-    } on DioException catch (e) {
-      throw DioClient.handleDioError(e);
-    }
-  }
-
-  /// Google Sign-In → POST /auth/google with id_token; throws [ApiError].
-  /// Returns null if the user cancelled the Google sign-in sheet.
-  Future<VerifyOtpResult?> loginWithGoogle() async {
-    final googleUser = await GoogleSignIn().signIn();
-    if (googleUser == null) return null;
-    final auth = await googleUser.authentication;
-    final idToken = auth.idToken;
-    if (idToken == null) throw const ServerError(statusCode: 0, message: 'Google sign-in failed: no ID token');
-    try {
-      final response = await _dio.post<Map<String, dynamic>>(
-        '/auth/google',
-        data: {'id_token': idToken},
-      );
-      return VerifyOtpResult.fromJson(response.data!);
-    } on DioException catch (e) {
-      throw DioClient.handleDioError(e);
-    }
-  }
-
-  /// Facebook/Meta Login → POST /auth/facebook with access_token; throws [ApiError].
-  /// Returns null if the user cancelled.
-  Future<VerifyOtpResult?> loginWithFacebook() async {
-    final result = await FacebookAuth.instance.login(
-      permissions: ['email', 'public_profile'],
-    );
-    if (result.status == LoginStatus.cancelled) return null;
-    if (result.status != LoginStatus.success) {
-      throw ServerError(
-          statusCode: 0,
-          message: result.message ?? 'Facebook sign-in failed');
-    }
-    final token = result.accessToken?.tokenString;
-    if (token == null) throw const ServerError(statusCode: 0, message: 'Facebook sign-in failed: no token');
-    try {
-      final response = await _dio.post<Map<String, dynamic>>(
-        '/auth/facebook',
-        data: {'access_token': token},
       );
       return VerifyOtpResult.fromJson(response.data!);
     } on DioException catch (e) {
