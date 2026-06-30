@@ -56,7 +56,13 @@ class DioClient {
         final detail = body['detail'];
         if (detail is List && detail.isNotEmpty) {
           final first = detail.first;
-          message = first is Map ? (first['msg']?.toString() ?? detail.toString()) : detail.toString();
+          if (first is Map) {
+            final msg = first['msg']?.toString() ?? '';
+            final loc = (first['loc'] as List?)?.skip(1).join('.') ?? '';
+            message = loc.isNotEmpty ? '$msg: $loc' : msg;
+          } else {
+            message = detail.toString();
+          }
         } else {
           message = detail.toString();
         }

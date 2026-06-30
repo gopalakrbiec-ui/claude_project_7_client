@@ -113,18 +113,23 @@ class ToolsRepository {
     }
   }
 
-  /// Run a tool. Pass whichever params the tool needs.
+  /// Run a tool. [extraFields] lets callers send tool-specific named params
+  /// (e.g. hair_colour for Hair Salon) without hard-coding them here.
   Future<ToolResult> runTool(
     String toolId, {
     String? photoKey,
     String? targetPhotoKey,
-    String? prompt,
+    Map<String, String>? extraFields,
   }) async {
     try {
       final body = <String, dynamic>{};
       if (photoKey != null) body['photo_key'] = photoKey;
       if (targetPhotoKey != null) body['target_photo_key'] = targetPhotoKey;
-      if (prompt != null && prompt.isNotEmpty) body['prompt'] = prompt;
+      if (extraFields != null) {
+        for (final e in extraFields.entries) {
+          if (e.value.isNotEmpty) body[e.key] = e.value;
+        }
+      }
 
       final response = await _dio.post<Map<String, dynamic>>(
         '/tools/$toolId',

@@ -18,14 +18,15 @@ import '../../widgets/error_view.dart';
 import '../../widgets/insufficient_credits_dialog.dart';
 
 // ---------------------------------------------------------------------------
-// Provider — fetches the tool list from GET /tools
+// Provider
 // ---------------------------------------------------------------------------
 final _toolsListProvider = FutureProvider.autoDispose<List<AiToolDef>>((ref) {
   return ref.read(toolsRepositoryProvider).getTools();
 });
 
 // ---------------------------------------------------------------------------
-// Per-tool input configuration (hardcoded — backend flags are unreliable)
+// Per-tool configuration — all inputs and field names hardcoded because
+// the backend's needs_* flags are unreliable.
 // ---------------------------------------------------------------------------
 class _ToolInputConfig {
   const _ToolInputConfig({
@@ -36,6 +37,11 @@ class _ToolInputConfig {
     this.targetLabel = 'Style / Target Photo',
     this.promptLabel = 'Describe what you want',
     this.promptHint = 'Describe the result you want…',
+    // The field name to use when sending the text prompt to the backend.
+    // Defaults to 'prompt' but e.g. Hair Salon uses 'hair_colour'.
+    this.promptFieldName = 'prompt',
+    // An illustrative image URL shown on the tool card (picsum deterministic seed).
+    this.thumbnailUrl = '',
   });
 
   final bool needsPhoto;
@@ -45,26 +51,32 @@ class _ToolInputConfig {
   final String targetLabel;
   final String promptLabel;
   final String promptHint;
+  final String promptFieldName;
+  final String thumbnailUrl;
 }
 
 _ToolInputConfig _configFor(AiToolDef tool) {
   final n = tool.name.toLowerCase();
+
   if (n.contains('face swap')) {
     return const _ToolInputConfig(
       needsPhoto: true,
       needsTargetPhoto: true,
       needsPrompt: false,
       photoLabel: 'Your Face Photo',
-      targetLabel: 'Target Face Photo (to swap onto)',
+      targetLabel: 'Target Body Photo (swap onto)',
+      thumbnailUrl: 'https://picsum.photos/seed/faceswap42/400/400',
     );
   }
-  if (n.contains('ai filter') || n.contains('filter')) {
+  if (n.contains('ai filter') || (n.contains('filter') && !n.contains('hair'))) {
     return const _ToolInputConfig(
       needsPhoto: true,
       needsTargetPhoto: false,
       needsPrompt: true,
       promptLabel: 'Filter Style',
       promptHint: 'e.g. oil painting, anime, watercolor, vintage…',
+      promptFieldName: 'style',
+      thumbnailUrl: 'https://picsum.photos/seed/aifilter87/400/400',
     );
   }
   if (n.contains('bg remove') || n.contains('background remove')) {
@@ -72,15 +84,17 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       needsPhoto: true,
       needsTargetPhoto: false,
       needsPrompt: false,
+      thumbnailUrl: 'https://picsum.photos/seed/bgremove33/400/400',
     );
   }
-  if (n.contains('background') || n.contains('ai background')) {
+  if (n.contains('ai background') || n.contains('background')) {
     return const _ToolInputConfig(
       needsPhoto: true,
       needsTargetPhoto: false,
       needsPrompt: true,
-      promptLabel: 'New Background Description',
-      promptHint: 'e.g. beach at sunset, mountain forest, city skyline…',
+      promptLabel: 'New Background',
+      promptHint: 'e.g. beach at sunset, mountain forest, Taj Mahal…',
+      thumbnailUrl: 'https://picsum.photos/seed/aibg55/400/400',
     );
   }
   if (n.contains('upscale') || n.contains('hd')) {
@@ -88,6 +102,7 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       needsPhoto: true,
       needsTargetPhoto: false,
       needsPrompt: false,
+      thumbnailUrl: 'https://picsum.photos/seed/upscale19/400/400',
     );
   }
   if (n.contains('restore')) {
@@ -95,6 +110,7 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       needsPhoto: true,
       needsTargetPhoto: false,
       needsPrompt: false,
+      thumbnailUrl: 'https://picsum.photos/seed/restore66/400/400',
     );
   }
   if (n.contains('outfit')) {
@@ -103,7 +119,8 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       needsTargetPhoto: true,
       needsPrompt: false,
       photoLabel: 'Your Photo',
-      targetLabel: 'Target Outfit Photo',
+      targetLabel: 'Outfit / Clothing Photo',
+      thumbnailUrl: 'https://picsum.photos/seed/outfit77/400/400',
     );
   }
   if (n.contains('hair')) {
@@ -113,6 +130,8 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       needsPrompt: true,
       promptLabel: 'Hair Colour / Style',
       promptHint: 'e.g. black wavy, blonde straight, short curly brown…',
+      promptFieldName: 'hair_colour',
+      thumbnailUrl: 'https://picsum.photos/seed/hairsalon28/400/400',
     );
   }
   if (n.contains('remix')) {
@@ -122,43 +141,31 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       needsPrompt: true,
       promptLabel: 'Remix Style',
       promptHint: 'Describe how you want to transform the photo…',
+      thumbnailUrl: 'https://picsum.photos/seed/remix91/400/400',
     );
   }
-  if (n.contains('text to image') || n.contains('text-to-image')) {
+  if (n.contains('text to image') || n.contains('text-to-image') || n.contains('text2image')) {
     return const _ToolInputConfig(
       needsPhoto: false,
       needsTargetPhoto: false,
       needsPrompt: true,
       promptLabel: 'Describe the image',
       promptHint: 'e.g. A beautiful sunset over the Himalayas with golden light…',
+      thumbnailUrl: 'https://picsum.photos/seed/textimg14/400/400',
     );
   }
-  // Fallback: honour server flags
+  // Fallback: honour server flags, generic field name
   return _ToolInputConfig(
     needsPhoto: tool.needsPhoto,
     needsTargetPhoto: tool.needsTargetPhoto,
     needsPrompt: tool.needsPrompt,
+    thumbnailUrl: 'https://picsum.photos/seed/${tool.id}/400/400',
   );
 }
 
 // ---------------------------------------------------------------------------
-// Icon / gradient helpers keyed by tool name
+// Gradient palette per tool
 // ---------------------------------------------------------------------------
-IconData _iconFor(String name) {
-  final n = name.toLowerCase();
-  if (n.contains('face')) return Icons.face_retouching_natural;
-  if (n.contains('filter')) return Icons.auto_fix_high;
-  if (n.contains('bg remove') || n.contains('background remove')) return Icons.layers_clear_outlined;
-  if (n.contains('background')) return Icons.wallpaper_rounded;
-  if (n.contains('upscale') || n.contains('hd')) return Icons.hd_outlined;
-  if (n.contains('restore')) return Icons.auto_fix_high_outlined;
-  if (n.contains('outfit')) return Icons.checkroom_outlined;
-  if (n.contains('hair')) return Icons.content_cut_outlined;
-  if (n.contains('remix')) return Icons.shuffle_rounded;
-  if (n.contains('text')) return Icons.text_fields_rounded;
-  return Icons.auto_awesome;
-}
-
 List<Color> _gradientFor(String name) {
   final n = name.toLowerCase();
   if (n.contains('face')) return [const Color(0xFF1565C0), const Color(0xFF42A5F5)];
@@ -176,8 +183,23 @@ List<Color> _gradientFor(String name) {
   return [kSaffron, kMagenta];
 }
 
+IconData _iconFor(String name) {
+  final n = name.toLowerCase();
+  if (n.contains('face')) return Icons.face_retouching_natural;
+  if (n.contains('filter')) return Icons.auto_fix_high;
+  if (n.contains('bg remove') || n.contains('background remove')) return Icons.layers_clear_outlined;
+  if (n.contains('background')) return Icons.wallpaper_rounded;
+  if (n.contains('upscale') || n.contains('hd')) return Icons.hd_outlined;
+  if (n.contains('restore')) return Icons.auto_fix_high_outlined;
+  if (n.contains('outfit')) return Icons.checkroom_outlined;
+  if (n.contains('hair')) return Icons.content_cut_outlined;
+  if (n.contains('remix')) return Icons.shuffle_rounded;
+  if (n.contains('text')) return Icons.text_fields_rounded;
+  return Icons.auto_awesome;
+}
+
 // ---------------------------------------------------------------------------
-// Hub screen — grid fetched from GET /tools
+// Hub screen
 // ---------------------------------------------------------------------------
 class ToolsScreen extends ConsumerWidget {
   const ToolsScreen({super.key});
@@ -185,7 +207,6 @@ class ToolsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final toolsAsync = ref.watch(_toolsListProvider);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('AI Tools'),
@@ -215,9 +236,9 @@ class _ToolGrid extends StatelessWidget {
       padding: const EdgeInsets.all(kSpaceMd),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        mainAxisSpacing: kSpaceMd,
-        crossAxisSpacing: kSpaceMd,
-        childAspectRatio: 1.0,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        childAspectRatio: 0.82,
       ),
       itemCount: tools.length,
       itemBuilder: (_, i) => _ToolCard(tool: tools[i]),
@@ -225,26 +246,57 @@ class _ToolGrid extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Glamorous tool card — image background + gradient overlay + icon badge
+// ---------------------------------------------------------------------------
 class _ToolCard extends StatelessWidget {
   const _ToolCard({required this.tool});
   final AiToolDef tool;
 
   @override
   Widget build(BuildContext context) {
+    final cfg = _configFor(tool);
     final gradient = _gradientFor(tool.name);
+    final icon = _iconFor(tool.name);
+
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.hardEdge,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: InkWell(
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => ToolWorkScreen(tool: tool)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Expanded(
-              flex: 3,
-              child: Container(
+            // Background image
+            if (cfg.thumbnailUrl.isNotEmpty)
+              CachedNetworkImage(
+                imageUrl: cfg.thumbnailUrl,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: gradient,
+                    ),
+                  ),
+                ),
+                errorWidget: (_, __, ___) => Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: gradient,
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -252,47 +304,87 @@ class _ToolCard extends StatelessWidget {
                     colors: gradient,
                   ),
                 ),
-                child: Center(
-                  child: Icon(_iconFor(tool.name), color: Colors.white, size: 40),
+              ),
+
+            // Gradient overlay for readability and brand colour
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    gradient[0].withValues(alpha: 0.55),
+                    gradient[1].withValues(alpha: 0.85),
+                  ],
                 ),
               ),
             ),
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      tool.name,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+
+            // Icon badge + name + price
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Spacer(),
+                // Floating icon badge
+                Center(
+                  child: Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.20),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.50), width: 1.5),
                     ),
-                    const SizedBox(height: 2),
-                    Row(
+                    child: Icon(icon, color: Colors.white, size: 28),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Name
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    tool.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13.5,
+                      shadows: [Shadow(blurRadius: 4, color: Colors.black45)],
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // Price chip
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.30),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.monetization_on_rounded,
-                            size: 13, color: Color(0xFFFFD700)),
+                            size: 12, color: Color(0xFFFFD700)),
                         const SizedBox(width: 3),
                         Text(
                           tool.costDisplay,
-                          style: TextStyle(
+                          style: const TextStyle(
+                            color: Colors.white,
                             fontSize: 12,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                const SizedBox(height: 14),
+              ],
             ),
           ],
         ),
@@ -302,7 +394,7 @@ class _ToolCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Tool work screen — photo upload + optional prompt → POST /tools/{id}
+// Tool work screen
 // ---------------------------------------------------------------------------
 class ToolWorkScreen extends ConsumerStatefulWidget {
   const ToolWorkScreen({super.key, required this.tool});
@@ -348,11 +440,23 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final gradient = _gradientFor(widget.tool.name);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.tool.name),
         actions: [const BalanceChip()],
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: gradient,
+            ),
+          ),
+        ),
+        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(kSpaceLg),
@@ -360,9 +464,7 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (_cfg.needsPhoto) ...[
-              Text(_cfg.photoLabel,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+              _SectionLabel(_cfg.photoLabel),
               const SizedBox(height: kSpaceSm),
               _PhotoPicker(
                 photo: _sourcePhoto,
@@ -380,9 +482,7 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
             ],
 
             if (_cfg.needsTargetPhoto) ...[
-              Text(_cfg.targetLabel,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+              _SectionLabel(_cfg.targetLabel),
               const SizedBox(height: kSpaceSm),
               _PhotoPicker(
                 photo: _targetPhoto,
@@ -398,9 +498,7 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
             ],
 
             if (_cfg.needsPrompt) ...[
-              Text(_cfg.promptLabel,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w700)),
+              _SectionLabel(_cfg.promptLabel),
               const SizedBox(height: kSpaceSm),
               TextField(
                 controller: _promptCtrl,
@@ -414,11 +512,17 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
             ],
 
             if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: kSpaceMd),
+              Container(
+                margin: const EdgeInsets.only(bottom: kSpaceMd),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Text(
                   _error!,
-                  style: TextStyle(color: theme.colorScheme.error, fontSize: 14),
+                  style: TextStyle(
+                      color: theme.colorScheme.onErrorContainer, fontSize: 13),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -448,9 +552,7 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : Icon(_iconFor(widget.tool.name)),
-              label: Text(_processing
-                  ? 'Processing…'
-                  : 'Run ${widget.tool.name}'),
+              label: Text(_processing ? 'Processing…' : 'Run ${widget.tool.name}'),
               style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14)),
             ),
@@ -471,8 +573,8 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   }
 
   Future<void> _pickPhoto({required bool isTarget}) async {
-    final picked = await _picker.pickImage(
-        source: ImageSource.gallery, imageQuality: 85);
+    final picked =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (picked == null || !mounted) return;
     final file = File(picked.path);
 
@@ -519,11 +621,15 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
       _resultUrl = null;
     });
     try {
+      final extraFields = _cfg.needsPrompt
+          ? {_cfg.promptFieldName: _promptCtrl.text.trim()}
+          : null;
+
       final result = await ref.read(toolsRepositoryProvider).runTool(
             widget.tool.id,
             photoKey: _cfg.needsPhoto ? _sourcePhotoKey : null,
             targetPhotoKey: _cfg.needsTargetPhoto ? _targetPhotoKey : null,
-            prompt: _cfg.needsPrompt ? _promptCtrl.text.trim() : null,
+            extraFields: extraFields,
           );
       if (mounted) {
         setState(() {
@@ -554,18 +660,16 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   Future<void> _share(String url) async {
     try {
       final dir = await getTemporaryDirectory();
-      final path =
-          '${dir.path}/tool_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final path = '${dir.path}/tool_${DateTime.now().millisecondsSinceEpoch}.jpg';
       await Dio(BaseOptions(
               connectTimeout: const Duration(seconds: 15),
               receiveTimeout: const Duration(seconds: 60)))
           .download(url, path);
-      await Share.shareXFiles([XFile(path)],
-          text: 'Made with Yaadein AI Tools! ✨');
+      await Share.shareXFiles([XFile(path)], text: 'Made with Yaadein AI Tools! ✨');
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not share image.')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Could not share image.')));
       }
     }
   }
@@ -573,8 +677,7 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   Future<void> _save(String url) async {
     try {
       final dir = await getTemporaryDirectory();
-      final path =
-          '${dir.path}/tool_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final path = '${dir.path}/tool_${DateTime.now().millisecondsSinceEpoch}.jpg';
       await Dio(BaseOptions(
               connectTimeout: const Duration(seconds: 15),
               receiveTimeout: const Duration(seconds: 60)))
@@ -586,8 +689,8 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not save image.')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Could not save image.')));
       }
     }
   }
@@ -596,6 +699,22 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
 // ---------------------------------------------------------------------------
 // Sub-widgets
 // ---------------------------------------------------------------------------
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(context)
+          .textTheme
+          .bodyMedium
+          ?.copyWith(fontWeight: FontWeight.w700, fontSize: 15),
+    );
+  }
+}
 
 class _PhotoPicker extends StatelessWidget {
   const _PhotoPicker({
@@ -632,13 +751,11 @@ class _PhotoPicker extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.add_photo_alternate_outlined,
-                      size: 44,
-                      color: theme.colorScheme.onSurfaceVariant),
+                      size: 44, color: theme.colorScheme.onSurfaceVariant),
                   const SizedBox(height: 8),
                   Text(hint,
                       style: TextStyle(
-                          color: theme.colorScheme.onSurfaceVariant,
-                          fontSize: 13)),
+                          color: theme.colorScheme.onSurfaceVariant, fontSize: 13)),
                 ],
               )
             : Stack(
@@ -652,8 +769,7 @@ class _PhotoPicker extends StatelessWidget {
                     Container(
                       color: Colors.black45,
                       child: const Center(
-                          child: CircularProgressIndicator(
-                              color: Colors.white)),
+                          child: CircularProgressIndicator(color: Colors.white)),
                     )
                   else
                     Positioned(
@@ -664,10 +780,9 @@ class _PhotoPicker extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: const BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle),
-                          child: const Icon(Icons.close,
-                              color: Colors.white, size: 18),
+                              color: Colors.black54, shape: BoxShape.circle),
+                          child:
+                              const Icon(Icons.close, color: Colors.white, size: 18),
                         ),
                       ),
                     ),
