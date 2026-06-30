@@ -488,6 +488,7 @@ class _VideoTab extends StatelessWidget {
       ),
     );
   }
+}
 
 // ---------------------------------------------------------------------------
 // My Orders screen — navigated to from Profile
