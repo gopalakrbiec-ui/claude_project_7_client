@@ -447,8 +447,6 @@ class _VideoTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-  @override
-  Widget build(BuildContext context) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
