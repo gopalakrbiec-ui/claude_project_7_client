@@ -40,6 +40,8 @@ class _ToolInputConfig {
     // The field name to use when sending the text prompt to the backend.
     // Defaults to 'prompt' but e.g. Hair Salon uses 'hair_colour'.
     this.promptFieldName = 'prompt',
+    // The body field name used when sending the target/style photo key.
+    this.targetPhotoFieldName = 'target_photo_key',
     // An illustrative image URL shown on the tool card (picsum deterministic seed).
     this.thumbnailUrl = '',
   });
@@ -52,6 +54,7 @@ class _ToolInputConfig {
   final String promptLabel;
   final String promptHint;
   final String promptFieldName;
+  final String targetPhotoFieldName;
   final String thumbnailUrl;
 }
 
@@ -86,6 +89,7 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       needsPrompt: false,
       photoLabel: 'Your Photo',
       targetLabel: 'Outfit / Clothing Photo',
+      targetPhotoFieldName: 'garment_photo_key',
       thumbnailUrl: 'https://picsum.photos/seed/outfit77/400/400',
     );
   }
@@ -586,11 +590,16 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
           : null;
 
       final repo = ref.read(toolsRepositoryProvider);
+      // Merge target photo under its tool-specific field name.
+      final allFields = <String, String>{
+        if (extraFields != null) ...extraFields,
+        if (_cfg.needsTargetPhoto && _targetPhotoKey != null)
+          _cfg.targetPhotoFieldName: _targetPhotoKey!,
+      };
       final job = await repo.runTool(
         widget.tool.id,
         photoKey: _cfg.needsPhoto ? _sourcePhotoKey : null,
-        targetPhotoKey: _cfg.needsTargetPhoto ? _targetPhotoKey : null,
-        extraFields: extraFields,
+        extraFields: allFields.isEmpty ? null : allFields,
       );
 
       if (mounted) setState(() => _processingStatus = 'Processing…');

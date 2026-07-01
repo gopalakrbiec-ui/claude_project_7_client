@@ -148,13 +148,11 @@ class ToolsRepository {
   Future<ToolJobResponse> runTool(
     String toolId, {
     String? photoKey,
-    String? targetPhotoKey,
     Map<String, String>? extraFields,
   }) async {
     try {
       final body = <String, dynamic>{};
       if (photoKey != null) body['photo_key'] = photoKey;
-      if (targetPhotoKey != null) body['target_photo_key'] = targetPhotoKey;
       if (extraFields != null) {
         for (final e in extraFields.entries) {
           if (e.value.isNotEmpty) body[e.key] = e.value;
