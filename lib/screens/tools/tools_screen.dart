@@ -636,7 +636,11 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
 
       // Start background polling and register with the badge tracker.
       ref.read(toolJobControllerProvider(job.jobId));
-      ref.read(backgroundToolJobsProvider.notifier).trackJob(job.jobId);
+      ref.read(backgroundToolJobsProvider.notifier).trackJob(
+            job.jobId,
+            toolName: widget.tool.name,
+            isVideo: _cfg.isVideo,
+          );
 
       // Navigate to the status screen — user can browse from there.
       context.push(

@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../controllers/auth_controller.dart';
+import '../../controllers/background_tool_jobs_controller.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../core/token_storage.dart';
@@ -74,6 +75,8 @@ class ProfileScreen extends ConsumerWidget {
     }
 
     final ordersAsync = ref.watch(_profileOrdersProvider);
+    final toolJobsState = ref.watch(backgroundToolJobsProvider);
+    final completedJobs = toolJobsState.completedJobs;
 
     return Scaffold(
       appBar: AppBar(
@@ -211,13 +214,35 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ),
 
-                const SizedBox(height: kSpaceLg),
-                Text('Past Orders',
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700)),
-                const SizedBox(height: kSpaceSm),
               ],
             ),
+          ),
+
+          if (completedJobs.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(kSpaceMd, kSpaceLg, kSpaceMd, kSpaceSm),
+              child: Text('Recent AI Creations',
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+            ),
+            SizedBox(
+              height: 130,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: kSpaceMd),
+                itemCount: completedJobs.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (ctx, i) =>
+                    _AiCreationCard(job: completedJobs[i]),
+              ),
+            ),
+          ],
+
+          Padding(
+            padding: const EdgeInsets.fromLTRB(kSpaceMd, kSpaceLg, kSpaceMd, kSpaceSm),
+            child: Text('Past Orders',
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700)),
           ),
 
           // Orders list
@@ -365,5 +390,75 @@ class _ProfileOrderCard extends StatelessWidget {
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         child: const Center(
             child: Icon(Icons.image_outlined, size: 24, color: Colors.white54)),
+      );
+}
+
+class _AiCreationCard extends StatelessWidget {
+  const _AiCreationCard({required this.job});
+  final CompletedToolJob job;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: () => context.push(
+        '/home/tools/job/${job.jobId}',
+        extra: {
+          'toolName': job.toolName,
+          'costDisplay': job.costDisplay,
+        },
+      ),
+      child: SizedBox(
+        width: 110,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                width: 110,
+                height: 90,
+                child: job.resultUrl != null
+                    ? job.isVideo
+                        ? Container(
+                            color: Colors.black,
+                            child: const Center(
+                              child: Icon(Icons.play_circle_outline,
+                                  color: Colors.white, size: 36),
+                            ),
+                          )
+                        : CachedNetworkImage(
+                            imageUrl: job.resultUrl!,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => _placeholder(context),
+                          )
+                    : _placeholder(context),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              job.toolName,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              job.costDisplay,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _placeholder(BuildContext context) => Container(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        child: const Center(
+            child: Icon(Icons.auto_awesome, size: 28, color: Colors.white54)),
       );
 }
