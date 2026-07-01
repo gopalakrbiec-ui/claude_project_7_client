@@ -20,7 +20,7 @@ import '../../widgets/insufficient_credits_dialog.dart';
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
-final _toolsListProvider = FutureProvider.autoDispose<List<AiToolDef>>((ref) {
+final toolsListProvider = FutureProvider.autoDispose<List<AiToolDef>>((ref) {
   return ref.read(toolsRepositoryProvider).getTools();
 });
 
@@ -166,7 +166,7 @@ class ToolsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final toolsAsync = ref.watch(_toolsListProvider);
+    final toolsAsync = ref.watch(toolsListProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('AI Tools'),
@@ -176,7 +176,7 @@ class ToolsScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorView(
           message: 'Could not load tools.',
-          onRetry: () => ref.invalidate(_toolsListProvider),
+          onRetry: () => ref.invalidate(toolsListProvider),
         ),
         data: (tools) => tools.isEmpty
             ? const Center(child: Text('No tools available yet.'))
