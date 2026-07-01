@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,12 +9,16 @@ import '../../controllers/auth_controller.dart';
 import '../../controllers/background_orders_controller.dart';
 import '../../controllers/background_tool_jobs_controller.dart';
 import '../../controllers/templates_controller.dart';
+import '../../controllers/tool_job_controller.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../core/token_storage.dart';
 import '../../models/order_summary.dart';
 import '../../models/template.dart';
 import '../../repositories/orders_repository.dart';
+import '../../repositories/tools_repository.dart';
+import '../../screens/tools/tools_screen.dart'
+    show toolsListProvider, ToolWorkScreen;
 import '../../widgets/balance_chip.dart';
 import '../../widgets/error_view.dart';
 import '../../widgets/skeleton_card.dart';
@@ -37,65 +43,100 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _tab = 0;
+  bool _showToolsMenu = false;
+
+  void _toggleToolsMenu() =>
+      setState(() => _showToolsMenu = !_showToolsMenu);
+
+  void _closeToolsMenu() {
+    if (_showToolsMenu) setState(() => _showToolsMenu = false);
+  }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
     final isAgent = authState is AuthAuthenticated && authState.profile.isAgent;
+    final toolsAsync = ref.watch(toolsListProvider);
 
-    return Scaffold(
-      appBar: _HomeAppBar(isAgent: isAgent),
-      body: IndexedStack(
-        index: _tab,
-        children: [
-          _HomeTab(isAgent: isAgent),
-          // Tab 1 is the AI button — never shown in IndexedStack; taps open tools directly.
-          const _VideoTab(),
-        ],
-      ),
-      // Centre FAB for AI tools
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/home/tools'),
-        backgroundColor: kSaffron,
-        foregroundColor: Colors.white,
-        elevation: 6,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.auto_awesome, size: 28),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        color: kDarkSurface,
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        height: 72,
-        padding: EdgeInsets.zero,
-        child: Row(
-          children: [
-            // Home
-            Expanded(
-              child: _NavItem(
-                icon: Icons.home_outlined,
-                selectedIcon: Icons.home,
-                label: 'Home',
-                selected: _tab == 0,
-                onTap: () => setState(() => _tab = 0),
-              ),
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: _HomeAppBar(isAgent: isAgent),
+          body: IndexedStack(
+            index: _tab,
+            children: [
+              _HomeTab(isAgent: isAgent),
+              const _VideoTab(),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: _toggleToolsMenu,
+            backgroundColor: _showToolsMenu ? Colors.white : kSaffron,
+            foregroundColor: _showToolsMenu ? kSaffron : Colors.white,
+            elevation: 6,
+            shape: const CircleBorder(),
+            child: AnimatedRotation(
+              turns: _showToolsMenu ? 0.125 : 0,
+              duration: const Duration(milliseconds: 250),
+              child: Icon(
+                  _showToolsMenu ? Icons.close : Icons.auto_awesome,
+                  size: 28),
             ),
-            // Centre spacer for FAB notch
-            const Expanded(child: SizedBox()),
-            // Video
-            Expanded(
-              child: _NavItem(
-                icon: Icons.video_library_outlined,
-                selectedIcon: Icons.video_library,
-                label: 'Video',
-                selected: _tab == 1,
-                onTap: () => setState(() => _tab = 1),
-              ),
+          ),
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerDocked,
+          bottomNavigationBar: BottomAppBar(
+            color: kDarkSurface,
+            shape: const CircularNotchedRectangle(),
+            notchMargin: 8,
+            height: 72,
+            padding: EdgeInsets.zero,
+            child: Row(
+              children: [
+                Expanded(
+                  child: _NavItem(
+                    icon: Icons.home_outlined,
+                    selectedIcon: Icons.home,
+                    label: 'Home',
+                    selected: _tab == 0,
+                    onTap: () {
+                      _closeToolsMenu();
+                      setState(() => _tab = 0);
+                    },
+                  ),
+                ),
+                const Expanded(child: SizedBox()),
+                Expanded(
+                  child: _NavItem(
+                    icon: Icons.video_library_outlined,
+                    selectedIcon: Icons.video_library,
+                    label: 'Video',
+                    selected: _tab == 1,
+                    onTap: () {
+                      _closeToolsMenu();
+                      setState(() => _tab = 1);
+                    },
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+
+        // Radial tools overlay
+        if (_showToolsMenu)
+          _RadialToolsMenu(
+            toolsAsync: toolsAsync,
+            onClose: _closeToolsMenu,
+            onToolTap: (tool) {
+              _closeToolsMenu();
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                    builder: (_) => ToolWorkScreen(tool: tool)),
+              );
+            },
+          ),
+      ],
     );
   }
 }
@@ -699,5 +740,175 @@ class _FallbackThumb extends StatelessWidget {
         child: Icon(Icons.image_outlined, size: 28, color: Colors.white54),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Radial tools menu — half-circle arc overlay rising from bottom centre
+// ---------------------------------------------------------------------------
+class _RadialToolsMenu extends StatefulWidget {
+  const _RadialToolsMenu({
+    required this.toolsAsync,
+    required this.onClose,
+    required this.onToolTap,
+  });
+
+  final AsyncValue<List<AiToolDef>> toolsAsync;
+  final VoidCallback onClose;
+  final void Function(AiToolDef tool) onToolTap;
+
+  @override
+  State<_RadialToolsMenu> createState() => _RadialToolsMenuState();
+}
+
+class _RadialToolsMenuState extends State<_RadialToolsMenu>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _fade;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 280));
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _scale = Tween<double>(begin: 0.6, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: GestureDetector(
+        onTap: widget.onClose,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.72),
+          child: widget.toolsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (tools) => _ArcItems(
+              tools: tools,
+              scaleAnim: _scale,
+              onToolTap: widget.onToolTap,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ArcItems extends StatelessWidget {
+  const _ArcItems({
+    required this.tools,
+    required this.scaleAnim,
+    required this.onToolTap,
+  });
+
+  final List<AiToolDef> tools;
+  final Animation<double> scaleAnim;
+  final void Function(AiToolDef) onToolTap;
+
+  static const _itemSize = 72.0;
+  static const _labelHeight = 20.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final cx = size.width / 2;
+    // Anchor slightly above the bottom nav bar + FAB
+    final cy = size.height - 60.0;
+    final radius = size.height * 0.38;
+
+    final count = tools.length;
+    // Spread angles from ~160° to ~20° (left to right through the top)
+    final startAngle = math.pi * 0.9;
+    final endAngle = math.pi * 0.1;
+    final step = count > 1 ? (endAngle - startAngle) / (count - 1) : 0.0;
+
+    return Stack(
+      children: [
+        for (var i = 0; i < count; i++)
+          _buildItem(tools[i], cx, cy, radius, startAngle + step * i),
+      ],
+    );
+  }
+
+  Widget _buildItem(
+      AiToolDef tool, double cx, double cy, double radius, double angle) {
+    final dx = cx + radius * math.cos(angle) - _itemSize / 2;
+    final dy = cy + radius * math.sin(angle) - _itemSize / 2 - _labelHeight;
+
+    return Positioned(
+      left: dx,
+      top: dy,
+      child: ScaleTransition(
+        scale: scaleAnim,
+        child: GestureDetector(
+          onTap: () => onToolTap(tool),
+          child: SizedBox(
+            width: _itemSize,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: _itemSize,
+                  height: _itemSize,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E2E),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.15), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(_iconFor(tool.id),
+                      color: Colors.white, size: 30),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  tool.name,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _iconFor(String id) {
+    switch (id) {
+      case 'ai-filter':
+        return Icons.auto_fix_high;
+      case 'ai-outfit':
+        return Icons.checkroom_outlined;
+      default:
+        return Icons.auto_awesome;
+    }
   }
 }
