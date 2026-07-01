@@ -760,7 +760,7 @@ class _FallbackThumb extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Glamorous radial tools menu — animated arc overlay with per-tool gradients
+// Glamorous radial tools menu — spinning wheel overlay
 // ---------------------------------------------------------------------------
 class _RadialToolsMenu extends StatefulWidget {
   const _RadialToolsMenu({
@@ -782,6 +782,10 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
   late final AnimationController _bgCtrl;
   late final AnimationController _pulseCtrl;
   late final AnimationController _itemsCtrl;
+  late final AnimationController _snapCtrl;
+
+  double _wheelRotation = 0.0;
+  Animation<double>? _snapAnim;
 
   @override
   void initState() {
@@ -795,6 +799,14 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
     _itemsCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 700))
       ..forward();
+    _snapCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 380));
+    _snapCtrl.addListener(_onSnapTick);
+  }
+
+  void _onSnapTick() {
+    final a = _snapAnim;
+    if (a != null) setState(() => _wheelRotation = a.value);
   }
 
   @override
@@ -802,7 +814,26 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
     _bgCtrl.dispose();
     _pulseCtrl.dispose();
     _itemsCtrl.dispose();
+    _snapCtrl.dispose();
     super.dispose();
+  }
+
+  void _onDragUpdate(DragUpdateDetails d, double radius) {
+    if (_snapCtrl.isAnimating) _snapCtrl.stop();
+    setState(() => _wheelRotation += d.delta.dx / radius);
+  }
+
+  void _snapToNearest(int n) {
+    if (n == 0) return;
+    final spacing = 2 * math.pi / n;
+    double offset = _wheelRotation % spacing;
+    if (offset < 0) offset += spacing;
+    final snapTo = offset <= spacing / 2
+        ? _wheelRotation - offset
+        : _wheelRotation - offset + spacing;
+    _snapAnim = Tween<double>(begin: _wheelRotation, end: snapTo).animate(
+        CurvedAnimation(parent: _snapCtrl, curve: Curves.easeOutBack));
+    _snapCtrl.forward(from: 0);
   }
 
   @override
@@ -810,9 +841,18 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
     final size = MediaQuery.sizeOf(context);
     final mq = MediaQuery.of(context);
     final cx = size.width / 2;
-    // FAB center = screen height − system nav bar − bottom bar + FAB half-height
     final bottomInset = mq.viewPadding.bottom;
-    final fabY = size.height - bottomInset - 72 + 28;
+    // Arc center raised 40px vs FAB to give more wheel space
+    final cy = size.height - bottomInset - 72 - 40 + 28;
+    // FAB actual center for glow ring
+    final fabGlowY = size.height - bottomInset - 72 + 28;
+
+    final maxR = (cx - 16 - _GlamArcItems._btnSize / 2) /
+        math.cos(math.pi - 150.0 * math.pi / 180).abs();
+    final radius = maxR.clamp(140.0, 200.0);
+
+    final toolCount = widget.toolsAsync.maybeWhen(
+        data: (t) => t.length, orElse: () => 0);
 
     return AnimatedBuilder(
       animation: _bgCtrl,
@@ -822,13 +862,15 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
       ),
       child: GestureDetector(
         onTap: widget.onClose,
+        onHorizontalDragUpdate: (d) => _onDragUpdate(d, radius),
+        onHorizontalDragEnd: (_) => _snapToNearest(toolCount),
         behavior: HitTestBehavior.opaque,
         child: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: RadialGradient(
               center: Alignment(0, 1.15),
               radius: 1.5,
-              colors: const [Color(0xE8160C2C), Color(0xD9000000)],
+              colors: [Color(0xE8160C2C), Color(0xD9000000)],
             ),
           ),
           child: Stack(
@@ -841,7 +883,7 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
                   final alpha = 0.35 - 0.28 * _pulseCtrl.value;
                   return Positioned(
                     left: cx - r,
-                    top: fabY - r,
+                    top: fabGlowY - r,
                     child: Container(
                       width: r * 2,
                       height: r * 2,
@@ -858,7 +900,7 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
               ),
               // Title label
               Positioned(
-                top: size.height * 0.28,
+                top: size.height * 0.12,
                 left: 0,
                 right: 0,
                 child: AnimatedBuilder(
@@ -886,7 +928,7 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
                         ),
                         SizedBox(height: 4),
                         Text(
-                          'Tap a tool to get started',
+                          'Swipe to spin  ·  Tap to use',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Color(0x99FFFFFF),
@@ -900,15 +942,21 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
                 ),
               ),
               // Tool items
-              widget.toolsAsync.when(
-                loading: () => const Center(
-                  child: CircularProgressIndicator(color: Colors.white54),
-                ),
-                error: (_, __) => const SizedBox.shrink(),
-                data: (tools) => _GlamArcItems(
-                  tools: tools,
-                  ctrl: _itemsCtrl,
-                  onToolTap: widget.onToolTap,
+              Positioned.fill(
+                child: widget.toolsAsync.when(
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(color: Colors.white54),
+                  ),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (tools) => _GlamArcItems(
+                    tools: tools,
+                    ctrl: _itemsCtrl,
+                    cx: cx,
+                    cy: cy,
+                    radius: radius,
+                    wheelRotation: _wheelRotation,
+                    onToolTap: widget.onToolTap,
+                  ),
                 ),
               ),
             ],
@@ -920,21 +968,35 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
 }
 
 // ---------------------------------------------------------------------------
-// Arc layout with staggered spring animations
+// Spinning wheel arc layout — full 360° wheel, top arc visible
 // ---------------------------------------------------------------------------
 class _GlamArcItems extends StatelessWidget {
   const _GlamArcItems({
     required this.tools,
     required this.ctrl,
+    required this.cx,
+    required this.cy,
+    required this.radius,
+    required this.wheelRotation,
     required this.onToolTap,
   });
 
   final List<AiToolDef> tools;
   final AnimationController ctrl;
+  final double cx;
+  final double cy;
+  final double radius;
+  final double wheelRotation;
   final void Function(AiToolDef) onToolTap;
 
   static const _btnSize = 52.0;
-  static const _totalSlot = 76.0; // button + label height
+  static const _labelWidth = 72.0;
+  static const _labelHeight = 22.0;
+
+  // Visible window: angles in [_loRad, _hiRad] (from +x axis, counterclockwise)
+  static const _loRad = 20.0 * math.pi / 180;
+  static const _hiRad = 160.0 * math.pi / 180;
+  static const _fadeZoneRad = 15.0 * math.pi / 180;
 
   static List<Color> _colorsFor(String id) {
     final n = id.toLowerCase();
@@ -960,147 +1022,178 @@ class _GlamArcItems extends StatelessWidget {
     return Icons.auto_awesome;
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    final size = mq.size;
-    final cx = size.width / 2;
-    // FAB centre — same formula as _RadialToolsMenuState so glow and items align
-    final bottomInset = mq.viewPadding.bottom;
-    final cy = size.height - bottomInset - 72 + 28;
-
-    // Arc from 150° to 30° (120° spread). At 30° sin≈0.5, so items land
-    // at least radius/2 above cy — enough to clear the ribbon.
-    const startDeg = 150.0;
-    const endDeg = 30.0;
-    final startAngle = startDeg * math.pi / 180;
-    final endAngle = endDeg * math.pi / 180;
-    // Keep edge items inside screen with 16dp margin
-    final maxR = (cx - 16 - _btnSize / 2) / math.cos(math.pi - startAngle).abs();
-    final radius = maxR.clamp(130.0, 185.0);
-
-    final n = tools.length;
-    return Stack(
-      children: [
-        for (var i = 0; i < n; i++) _buildItem(context, tools[i], i, n,
-            cx, cy, radius, startAngle, endAngle),
-      ],
-    );
+  double _normAngle(double a) {
+    final n = a % (2 * math.pi);
+    return n < 0 ? n + 2 * math.pi : n;
   }
 
-  Widget _buildItem(
-    BuildContext context,
-    AiToolDef tool,
-    int i,
-    int n,
-    double cx,
-    double cy,
-    double radius,
-    double startAngle,
-    double endAngle,
-  ) {
-    final angle = n == 1
-        ? math.pi / 2
-        : startAngle + (endAngle - startAngle) * i / (n - 1);
+  @override
+  Widget build(BuildContext context) {
+    final n = tools.length;
+    if (n == 0) return const SizedBox.shrink();
 
-    final targetDx = cx + radius * math.cos(angle) - _btnSize / 2;
-    final targetDy = cy - radius * math.sin(angle) - _totalSlot / 2;
+    // Effective angle for each tool in [0, 2π), tool 0 at top (π/2) when rotation=0
+    final angles = List.generate(n, (i) =>
+        _normAngle(math.pi / 2 - 2 * math.pi * i / n + wheelRotation));
 
-    // Stagger: item i starts at t=i*0.07, runs for 0.55 of the total
-    final t0 = (i * 0.07).clamp(0.0, 0.45);
-    final t1 = (t0 + 0.55).clamp(0.0, 1.0);
-    final springAnim = CurvedAnimation(
-      parent: ctrl,
-      curve: Interval(t0, t1, curve: Curves.elasticOut),
-    );
-    final fadeAnim = CurvedAnimation(
-      parent: ctrl,
-      curve: Interval(t0, (t0 + 0.25).clamp(0.0, 1.0), curve: Curves.easeOut),
-    );
-
-    // Items animate from FAB position (cx, cy) outward to their target
-    final colors = _colorsFor(tool.id);
-    final icon = _iconFor(tool.id);
+    // Find tool closest to π/2 (12 o'clock)
+    int centeredIdx = 0;
+    double minDist = double.infinity;
+    for (int i = 0; i < n; i++) {
+      double dist = (angles[i] - math.pi / 2).abs();
+      if (dist > math.pi) dist = 2 * math.pi - dist;
+      if (dist < minDist) {
+        minDist = dist;
+        centeredIdx = i;
+      }
+    }
 
     return AnimatedBuilder(
       animation: ctrl,
       builder: (_, __) {
-        final t = springAnim.value;
-        final left = cx - _btnSize / 2 + (targetDx - (cx - _btnSize / 2)) * t;
-        final top = cy - _totalSlot / 2 + (targetDy - (cy - _totalSlot / 2)) * t;
-        return Positioned(
-          left: left,
-          top: top,
-          child: Opacity(
-            opacity: fadeAnim.value.clamp(0.0, 1.0),
-            child: GestureDetector(
-              onTap: () => onToolTap(tool),
-              child: SizedBox(
-                width: _btnSize,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Glow aura + gradient button
-                    Container(
-                      width: _btnSize + 8,
-                      height: _btnSize + 8,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: colors[0].withValues(alpha: 0.55),
-                            blurRadius: 22,
-                            spreadRadius: 3,
-                          ),
-                          BoxShadow(
-                            color: colors[1].withValues(alpha: 0.25),
-                            blurRadius: 40,
-                            spreadRadius: 6,
-                          ),
-                        ],
-                      ),
-                      child: Container(
-                        margin: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: colors,
-                          ),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.40),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Icon(icon, color: Colors.white,
-                            size: _btnSize * 0.42),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      tool.name,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w600,
-                        height: 1.2,
-                        shadows: [
-                          Shadow(color: Colors.black, blurRadius: 8),
-                          Shadow(color: Colors.black, blurRadius: 16),
-                        ],
-                      ),
-                    ),
-                  ],
+        final widgets = <Widget>[];
+        for (int i = 0; i < n; i++) {
+          widgets.addAll(_buildToolWidgets(i, n, angles[i], i == centeredIdx));
+        }
+        return Stack(children: widgets);
+      },
+    );
+  }
+
+  List<Widget> _buildToolWidgets(
+      int i, int n, double normAngle, bool isCentered) {
+    // Hide tools outside visible arc
+    if (normAngle < _loRad || normAngle > _hiRad) return [];
+
+    // Edge fade
+    double edgeOpacity = 1.0;
+    if (normAngle < _loRad + _fadeZoneRad) {
+      edgeOpacity = (normAngle - _loRad) / _fadeZoneRad;
+    } else if (normAngle > _hiRad - _fadeZoneRad) {
+      edgeOpacity = (_hiRad - normAngle) / _fadeZoneRad;
+    }
+
+    // Entrance stagger
+    final t0 = (i * 0.07).clamp(0.0, 0.45);
+    final t1 = (t0 + 0.55).clamp(0.0, 1.0);
+    final springT = CurvedAnimation(
+            parent: ctrl,
+            curve: Interval(t0, t1, curve: Curves.elasticOut))
+        .value;
+    final fadeT = CurvedAnimation(
+            parent: ctrl,
+            curve: Interval(
+                t0, (t0 + 0.25).clamp(0.0, 1.0),
+                curve: Curves.easeOut))
+        .value;
+
+    final totalOpacity = (edgeOpacity * fadeT).clamp(0.0, 1.0);
+    if (totalOpacity <= 0) return [];
+
+    // Icon position on circle
+    final iconX = cx + radius * math.cos(normAngle);
+    final iconY = cy - radius * math.sin(normAngle);
+    final animX = cx + (iconX - cx) * springT;
+    final animY = cy + (iconY - cy) * springT;
+
+    // Label position — further out radially above the icon
+    final labelR = radius + _btnSize / 2 + 14;
+    final labelX = cx + labelR * math.cos(normAngle);
+    final labelY = cy - labelR * math.sin(normAngle);
+    final animLabelX = cx + (labelX - cx) * springT;
+    final animLabelY = cy + (labelY - cy) * springT;
+
+    // Text rotates to follow radial direction (upright at top, tilted at sides)
+    final textRot = math.pi / 2 - normAngle;
+
+    final colors = _colorsFor(tools[i].id);
+    final icon = _iconFor(tools[i].id);
+    final scale = isCentered ? 1.18 : 1.0;
+    final glowAlpha = isCentered ? 0.80 : 0.55;
+    final blurR = isCentered ? 32.0 : 22.0;
+
+    final iconWidget = Positioned(
+      left: animX - (_btnSize + 8) / 2,
+      top: animY - (_btnSize + 8) / 2,
+      child: Opacity(
+        opacity: totalOpacity,
+        child: Transform.scale(
+          scale: scale,
+          child: GestureDetector(
+            onTap: () => onToolTap(tools[i]),
+            child: Container(
+              width: _btnSize + 8,
+              height: _btnSize + 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: colors[0].withValues(alpha: glowAlpha),
+                    blurRadius: blurR,
+                    spreadRadius: isCentered ? 5 : 3,
+                  ),
+                  BoxShadow(
+                    color: colors[1].withValues(alpha: isCentered ? 0.40 : 0.25),
+                    blurRadius: isCentered ? 56 : 40,
+                    spreadRadius: isCentered ? 8 : 6,
+                  ),
+                ],
+              ),
+              child: Container(
+                margin: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: colors,
+                  ),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: isCentered ? 0.70 : 0.40),
+                    width: isCentered ? 2.0 : 1.5,
+                  ),
                 ),
+                child: Icon(icon, color: Colors.white, size: _btnSize * 0.42),
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
+
+    final labelWidget = Positioned(
+      left: animLabelX - _labelWidth / 2,
+      top: animLabelY - _labelHeight / 2,
+      child: Opacity(
+        opacity: totalOpacity,
+        child: Transform.rotate(
+          angle: textRot,
+          child: SizedBox(
+            width: _labelWidth,
+            child: Text(
+              tools[i].name,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isCentered
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.85),
+                fontSize: 9.5,
+                fontWeight: isCentered ? FontWeight.w700 : FontWeight.w600,
+                height: 1.2,
+                decoration: TextDecoration.none,
+                shadows: const [
+                  Shadow(color: Colors.black, blurRadius: 8),
+                  Shadow(color: Colors.black, blurRadius: 16),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return [iconWidget, labelWidget];
   }
 }
