@@ -432,7 +432,6 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
                 onClear: () => setState(() {
                   _sourcePhoto = null;
                   _sourcePhotoKey = null;
-                  _resultUrl = null;
                   _error = null;
                 }),
               ),
@@ -535,7 +534,6 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
       } else {
         _sourcePhoto = file;
         _sourcePhotoKey = null;
-        _resultUrl = null;
         _uploadingSource = true;
       }
       _error = null;
