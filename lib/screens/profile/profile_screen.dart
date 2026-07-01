@@ -8,7 +8,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../controllers/auth_controller.dart';
-import '../../controllers/background_tool_jobs_controller.dart';
+import '../../controllers/background_tool_jobs_controller.dart'
+    show backgroundToolJobsProvider, CompletedToolJob, ToolJobStatus;
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../core/token_storage.dart';
@@ -221,12 +222,12 @@ class ProfileScreen extends ConsumerWidget {
           if (completedJobs.isNotEmpty) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(kSpaceMd, kSpaceLg, kSpaceMd, kSpaceSm),
-              child: Text('Recent AI Creations',
+              child: Text('AI Tool Jobs',
                   style: theme.textTheme.titleMedium
                       ?.copyWith(fontWeight: FontWeight.w700)),
             ),
             SizedBox(
-              height: 130,
+              height: 140,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: kSpaceMd),
@@ -400,6 +401,9 @@ class _AiCreationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isActive = job.status == ToolJobStatus.active;
+    final isFailed = job.status == ToolJobStatus.failed;
+
     return GestureDetector(
       onTap: () => context.push(
         '/home/tools/job/${job.jobId}',
@@ -415,24 +419,46 @@ class _AiCreationCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                width: 110,
-                height: 90,
-                child: job.resultUrl != null
-                    ? job.isVideo
-                        ? Container(
-                            color: Colors.black,
-                            child: const Center(
-                              child: Icon(Icons.play_circle_outline,
-                                  color: Colors.white, size: 36),
-                            ),
-                          )
-                        : CachedNetworkImage(
-                            imageUrl: job.resultUrl!,
-                            fit: BoxFit.cover,
-                            errorWidget: (_, __, ___) => _placeholder(context),
-                          )
-                    : _placeholder(context),
+              child: Stack(
+                children: [
+                  SizedBox(
+                    width: 110,
+                    height: 90,
+                    child: isActive
+                        ? _activePlaceholder(context)
+                        : isFailed
+                            ? _failedPlaceholder(context)
+                            : job.resultUrl != null
+                                ? job.isVideo
+                                    ? Container(
+                                        color: Colors.black,
+                                        child: const Center(
+                                          child: Icon(Icons.play_circle_outline,
+                                              color: Colors.white, size: 36),
+                                        ),
+                                      )
+                                    : CachedNetworkImage(
+                                        imageUrl: job.resultUrl!,
+                                        fit: BoxFit.cover,
+                                        errorWidget: (_, __, ___) =>
+                                            _placeholder(context),
+                                      )
+                                : _placeholder(context),
+                  ),
+                  if (isActive)
+                    const Positioned(
+                      top: 6,
+                      right: 6,
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: 4),
@@ -444,9 +470,17 @@ class _AiCreationCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             Text(
-              job.costDisplay,
+              isActive
+                  ? 'Processing…'
+                  : isFailed
+                      ? 'Failed'
+                      : job.costDisplay,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+                color: isActive
+                    ? const Color(0xFFFF6B23)
+                    : isFailed
+                        ? theme.colorScheme.error
+                        : theme.colorScheme.onSurfaceVariant,
                 fontSize: 11,
               ),
             ),
@@ -460,5 +494,18 @@ class _AiCreationCard extends StatelessWidget {
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         child: const Center(
             child: Icon(Icons.auto_awesome, size: 28, color: Colors.white54)),
+      );
+
+  Widget _activePlaceholder(BuildContext context) => Container(
+        color: const Color(0xFF1A1A2E),
+        child: const Center(
+            child: Icon(Icons.auto_awesome, size: 28, color: Color(0xFFFF6B23))),
+      );
+
+  Widget _failedPlaceholder(BuildContext context) => Container(
+        color: Theme.of(context).colorScheme.errorContainer,
+        child: Center(
+            child: Icon(Icons.error_outline,
+                size: 28, color: Theme.of(context).colorScheme.error)),
       );
 }

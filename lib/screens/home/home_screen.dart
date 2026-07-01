@@ -51,7 +51,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  int _tab = 0;
   bool _showToolsMenu = false;
 
   void _toggleToolsMenu() =>
@@ -59,6 +58,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _closeToolsMenu() {
     if (_showToolsMenu) setState(() => _showToolsMenu = false);
+  }
+
+  void _showInspireSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _InspireSheet(),
+    );
   }
 
   @override
@@ -71,13 +79,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       children: [
         Scaffold(
           appBar: _HomeAppBar(isAgent: isAgent),
-          body: IndexedStack(
-            index: _tab,
-            children: [
-              _HomeTab(isAgent: isAgent),
-              const _VideoTab(),
-            ],
-          ),
+          body: _HomeTab(isAgent: isAgent),
           floatingActionButton: Container(
             decoration: _showToolsMenu
                 ? BoxDecoration(
@@ -124,23 +126,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     icon: Icons.home_outlined,
                     selectedIcon: Icons.home,
                     label: 'Home',
-                    selected: _tab == 0,
-                    onTap: () {
-                      _closeToolsMenu();
-                      setState(() => _tab = 0);
-                    },
+                    selected: true,
+                    onTap: _closeToolsMenu,
                   ),
                 ),
                 const Expanded(child: SizedBox()),
                 Expanded(
                   child: _NavItem(
-                    icon: Icons.video_library_outlined,
-                    selectedIcon: Icons.video_library,
-                    label: 'Video',
-                    selected: _tab == 1,
+                    icon: Icons.auto_fix_high_outlined,
+                    selectedIcon: Icons.auto_fix_high,
+                    label: 'Inspire',
+                    selected: false,
                     onTap: () {
                       _closeToolsMenu();
-                      setState(() => _tab = 1);
+                      _showInspireSheet(context);
                     },
                   ),
                 ),
@@ -532,46 +531,105 @@ class _CategorySkeleton extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Video tab — placeholder
+// Inspire bottom sheet — coming soon
 // ---------------------------------------------------------------------------
-class _VideoTab extends StatelessWidget {
-  const _VideoTab();
+class _InspireSheet extends StatelessWidget {
+  const _InspireSheet();
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+          24, 16, 24, 24 + MediaQuery.viewPaddingOf(context).bottom),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 88,
-            height: 88,
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.outlineVariant,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            width: 80,
+            height: 80,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [kSaffron, kMagenta],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: const Icon(Icons.video_library_outlined,
-                color: Colors.white, size: 44),
+            child: const Icon(Icons.auto_fix_high, color: Colors.white, size: 42),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           Text(
-            'Video Generation',
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(fontWeight: FontWeight.w700),
+            'Inspire',
+            style: theme.textTheme.headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: kSaffron.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Text(
+              'Coming Soon',
+              style: TextStyle(
+                  color: kSaffron,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12),
+            ),
+          ),
+          const SizedBox(height: 16),
           Text(
-            'Coming soon! Create beautiful\nvideo memories with AI.',
+            'Search for live photos and videos by keyword or voice, and turn them into stunning AI creations instantly.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontSize: 15,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.search, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Search for inspiration…',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ),
+                Icon(Icons.mic_outlined,
+                    color: theme.colorScheme.onSurfaceVariant),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Notify Me When Ready'),
             ),
           ),
         ],
@@ -1133,8 +1191,8 @@ class _GlamArcItems extends StatelessWidget {
     // Text rotates to follow radial direction (upright at top, tilted at sides)
     final textRot = math.pi / 2 - normAngle;
 
-    final colors = _colorsFor(tools[i].id);
-    final icon = _iconFor(tools[i].id);
+    final colors = _colorsFor(tools[i].name);
+    final icon = _iconFor(tools[i].name);
     final scale = isCentered ? 1.18 : 1.0;
     final glowAlpha = isCentered ? 0.80 : 0.55;
     final blurR = isCentered ? 32.0 : 22.0;
