@@ -9,6 +9,7 @@ import 'package:gal/gal.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:video_player/video_player.dart';
 
 import '../../controllers/tool_job_controller.dart';
 import '../../core/constants.dart';
@@ -149,10 +150,12 @@ class _ToolJobStatusScreenState extends ConsumerState<ToolJobStatusScreen> {
   Future<File> _downloadFile(String? url) async {
     if (url == null) throw Exception('No result URL');
     final dir = await getTemporaryDirectory();
-    final path = '${dir.path}/tool_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final isVideo = url.contains('.mp4');
+    final ext = isVideo ? 'mp4' : 'jpg';
+    final path = '${dir.path}/tool_${DateTime.now().millisecondsSinceEpoch}.$ext';
     final dio = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 60),
+      receiveTimeout: const Duration(seconds: 120),
     ));
     await dio.download(url, path);
     return File(path);
@@ -183,16 +186,25 @@ class _ToolJobStatusScreenState extends ConsumerState<ToolJobStatusScreen> {
     setState(() => _isDownloading = true);
     try {
       final file = await _downloadFile(url);
-      await Gal.putImage(file.path);
+      final isVideo = url?.contains('.mp4') == true;
+      if (isVideo) {
+        await Gal.putVideo(file.path);
+      } else {
+        await Gal.putImage(file.path);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved to your photo gallery!')),
+          SnackBar(
+              content: Text(isVideo
+                  ? 'Video saved to your gallery!'
+                  : 'Saved to your photo gallery!')),
         );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save image. Please try again.')),
+          const SnackBar(
+              content: Text('Could not save. Please try again.')),
         );
       }
     } finally {
@@ -492,6 +504,10 @@ class _DoneBody extends StatelessWidget {
   final VoidCallback onShare;
   final VoidCallback onSave;
 
+  bool get _isVideo =>
+      resultUrl != null &&
+      (resultUrl!.endsWith('.mp4') || resultUrl!.contains('.mp4?'));
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -499,20 +515,22 @@ class _DoneBody extends StatelessWidget {
       children: [
         Expanded(
           child: resultUrl != null
-              ? LayoutBuilder(builder: (ctx, c) {
-                  final dpr = MediaQuery.devicePixelRatioOf(ctx);
-                  final cacheWidth =
-                      (c.maxWidth * dpr).clamp(1.0, 1080.0).toInt();
-                  return CachedNetworkImage(
-                    imageUrl: resultUrl!,
-                    fit: BoxFit.cover,
-                    memCacheWidth: cacheWidth,
-                    placeholder: (_, __) =>
-                        const Center(child: CircularProgressIndicator()),
-                    errorWidget: (_, __, ___) => const Center(
-                        child: Icon(Icons.broken_image_outlined, size: 72)),
-                  );
-                })
+              ? _isVideo
+                  ? _VideoPlayer(url: resultUrl!)
+                  : LayoutBuilder(builder: (ctx, c) {
+                      final dpr = MediaQuery.devicePixelRatioOf(ctx);
+                      final cacheWidth =
+                          (c.maxWidth * dpr).clamp(1.0, 1080.0).toInt();
+                      return CachedNetworkImage(
+                        imageUrl: resultUrl!,
+                        fit: BoxFit.cover,
+                        memCacheWidth: cacheWidth,
+                        placeholder: (_, __) =>
+                            const Center(child: CircularProgressIndicator()),
+                        errorWidget: (_, __, ___) => const Center(
+                            child: Icon(Icons.broken_image_outlined, size: 72)),
+                      );
+                    })
               : ColoredBox(
                   color: theme.colorScheme.surfaceContainerHighest,
                   child: const Center(
@@ -566,6 +584,84 @@ class _DoneBody extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Inline video player for animate-photo results
+// ---------------------------------------------------------------------------
+class _VideoPlayer extends StatefulWidget {
+  const _VideoPlayer({required this.url});
+  final String url;
+
+  @override
+  State<_VideoPlayer> createState() => _VideoPlayerState();
+}
+
+class _VideoPlayerState extends State<_VideoPlayer> {
+  late final VideoPlayerController _ctrl;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..setLooping(true)
+      ..setVolume(0)
+      ..initialize().then((_) {
+        if (mounted) {
+          setState(() => _initialized = true);
+          _ctrl.play();
+        }
+      });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return GestureDetector(
+      onTap: () {
+        if (_ctrl.value.isPlaying) {
+          _ctrl.pause();
+        } else {
+          _ctrl.play();
+        }
+        setState(() {});
+      },
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox.expand(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _ctrl.value.size.width,
+                height: _ctrl.value.size.height,
+                child: VideoPlayer(_ctrl),
+              ),
+            ),
+          ),
+          if (!_ctrl.value.isPlaying)
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.black45,
+                shape: BoxShape.circle,
+              ),
+              padding: const EdgeInsets.all(12),
+              child: const Icon(Icons.play_arrow_rounded,
+                  color: Colors.white, size: 48),
+            ),
+        ],
+      ),
     );
   }
 }

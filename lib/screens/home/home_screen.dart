@@ -901,13 +901,13 @@ class _ArcItems extends StatelessWidget {
   }
 
   IconData _iconFor(String id) {
-    switch (id) {
-      case 'ai-filter':
-        return Icons.auto_fix_high;
-      case 'ai-outfit':
-        return Icons.checkroom_outlined;
-      default:
-        return Icons.auto_awesome;
-    }
+    final n = id.toLowerCase();
+    if (n.contains('filter')) return Icons.auto_fix_high;
+    if (n.contains('outfit')) return Icons.checkroom_outlined;
+    if (n.contains('animate')) return Icons.play_circle_outline_rounded;
+    if (n.contains('background')) return Icons.wallpaper_rounded;
+    if (n.contains('hair')) return Icons.content_cut_outlined;
+    if (n.contains('remix')) return Icons.shuffle_rounded;
+    return Icons.auto_awesome;
   }
 }

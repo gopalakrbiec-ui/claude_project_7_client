@@ -37,13 +37,16 @@ class _ToolInputConfig {
     this.targetLabel = 'Style / Target Photo',
     this.promptLabel = 'Describe what you want',
     this.promptHint = 'Describe the result you want…',
-    // The field name to use when sending the text prompt to the backend.
-    // Defaults to 'prompt' but e.g. Hair Salon uses 'hair_colour'.
     this.promptFieldName = 'prompt',
-    // The body field name used when sending the target/style photo key.
+    // Field name for the source/person photo (default: photo_key).
+    this.sourcePhotoFieldName = 'photo_key',
+    // Field name for the target/garment photo.
     this.targetPhotoFieldName = 'target_photo_key',
-    // An illustrative image URL shown on the tool card (picsum deterministic seed).
     this.thumbnailUrl = '',
+    // Whether this tool produces a video result.
+    this.isVideo = false,
+    // Whether the UI should show a duration picker (animate-photo).
+    this.hasVideoDuration = false,
   });
 
   final bool needsPhoto;
@@ -54,8 +57,11 @@ class _ToolInputConfig {
   final String promptLabel;
   final String promptHint;
   final String promptFieldName;
+  final String sourcePhotoFieldName;
   final String targetPhotoFieldName;
   final String thumbnailUrl;
+  final bool isVideo;
+  final bool hasVideoDuration;
 }
 
 _ToolInputConfig _configFor(AiToolDef tool) {
@@ -89,8 +95,23 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       needsPrompt: false,
       photoLabel: 'Your Photo',
       targetLabel: 'Outfit / Clothing Photo',
-      targetPhotoFieldName: 'garment_photo_key',
+      sourcePhotoFieldName: 'person_photo_key',
+      targetPhotoFieldName: 'outfit_photo_key',
       thumbnailUrl: 'https://picsum.photos/seed/outfit77/400/400',
+    );
+  }
+  if (n.contains('animate')) {
+    return const _ToolInputConfig(
+      needsPhoto: true,
+      needsTargetPhoto: false,
+      needsPrompt: true,
+      photoLabel: 'Photo to Animate',
+      promptLabel: 'Animation Style',
+      promptHint: 'e.g. gentle breeze, slow zoom, falling leaves…',
+      promptFieldName: 'prompt',
+      thumbnailUrl: 'https://picsum.photos/seed/animatephoto42/400/400',
+      isVideo: true,
+      hasVideoDuration: true,
     );
   }
   if (n.contains('hair')) {
@@ -144,6 +165,7 @@ List<Color> _gradientFor(String name) {
   if (n.contains('hair')) return [const Color(0xFF4A148C), const Color(0xFFBA68C8)];
   if (n.contains('remix')) return [const Color(0xFFE65100), const Color(0xFFFFB74D)];
   if (n.contains('text')) return [const Color(0xFF1B5E20), const Color(0xFF81C784)];
+  if (n.contains('animate')) return [const Color(0xFF0D47A1), const Color(0xFF42A5F5)];
   return [kSaffron, kMagenta];
 }
 
@@ -155,6 +177,7 @@ IconData _iconFor(String name) {
   if (n.contains('hair')) return Icons.content_cut_outlined;
   if (n.contains('remix')) return Icons.shuffle_rounded;
   if (n.contains('text')) return Icons.text_fields_rounded;
+  if (n.contains('animate')) return Icons.play_circle_outline_rounded;
   return Icons.auto_awesome;
 }
 
@@ -378,6 +401,9 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   String? _targetPhotoKey;
   bool _uploadingTarget = false;
 
+  // Duration selection for animate-photo: "5" or "10" seconds.
+  String _animateDuration = '5';
+
   bool _processing = false;
   String? _error;
 
@@ -464,6 +490,27 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
                 decoration: InputDecoration(
                   hintText: _cfg.promptHint,
                 ),
+              ),
+              const SizedBox(height: kSpaceMd),
+            ],
+
+            if (_cfg.hasVideoDuration) ...[
+              _SectionLabel('Duration'),
+              const SizedBox(height: kSpaceSm),
+              Row(
+                children: [
+                  _DurationChip(
+                    label: '5 seconds',
+                    selected: _animateDuration == '5',
+                    onTap: () => setState(() => _animateDuration = '5'),
+                  ),
+                  const SizedBox(width: 12),
+                  _DurationChip(
+                    label: '10 seconds',
+                    selected: _animateDuration == '10',
+                    onTap: () => setState(() => _animateDuration = '10'),
+                  ),
+                ],
               ),
               const SizedBox(height: kSpaceMd),
             ],
@@ -567,19 +614,21 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
       _error = null;
     });
     try {
-      final extraFields = _cfg.needsPrompt
-          ? {_cfg.promptFieldName: _promptCtrl.text.trim()}
-          : null;
-
       final allFields = <String, String>{
-        if (extraFields != null) ...extraFields,
+        if (_cfg.needsPrompt && _promptCtrl.text.trim().isNotEmpty)
+          _cfg.promptFieldName: _promptCtrl.text.trim(),
         if (_cfg.needsTargetPhoto && _targetPhotoKey != null)
           _cfg.targetPhotoFieldName: _targetPhotoKey!,
+        if (_cfg.hasVideoDuration) ...{
+          'duration': _animateDuration,
+          'aspect_ratio': '9:16',
+        },
       };
 
       final job = await ref.read(toolsRepositoryProvider).runTool(
             widget.tool.id,
             photoKey: _cfg.needsPhoto ? _sourcePhotoKey : null,
+            sourceFieldName: _cfg.sourcePhotoFieldName,
             extraFields: allFields.isEmpty ? null : allFields,
           );
 
@@ -613,7 +662,10 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   }
 
   String _msg(ApiError e) => switch (e) {
-        NetworkError() => 'No internet connection. Try again.',
+        NetworkError() =>
+          'Could not reach the server. Check your connection and try again.',
+        ServerError(:final statusCode) when statusCode == 422 =>
+          'Please check your photos and try again.',
         ServerError(:final message) => message,
         _ => 'Something went wrong. Please try again.',
       };
@@ -636,6 +688,44 @@ class _SectionLabel extends StatelessWidget {
           .textTheme
           .bodyMedium
           ?.copyWith(fontWeight: FontWeight.w700, fontSize: 15),
+    );
+  }
+}
+
+class _DurationChip extends StatelessWidget {
+  const _DurationChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? kSaffron : Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: selected ? kSaffron : Theme.of(context).colorScheme.outline,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : Theme.of(context).colorScheme.onSurface,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            fontSize: 14,
+          ),
+        ),
+      ),
     );
   }
 }
