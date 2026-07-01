@@ -287,9 +287,10 @@ class _HomeAppBar extends ConsumerWidget implements PreferredSizeWidget {
           ),
         const BalanceChip(),
         _ProfileBadgeButton(onTap: () {
-          ref.read(backgroundOrdersProvider.notifier).clearCompleted();
-          ref.read(backgroundToolJobsProvider.notifier).clearCompleted();
-          context.push('/home/profile');
+          context.push('/home/profile').then((_) {
+            ref.read(backgroundOrdersProvider.notifier).clearCompleted();
+            ref.read(backgroundToolJobsProvider.notifier).clearCompleted();
+          });
         }),
       ],
     );
@@ -1007,6 +1008,11 @@ class _GlamArcItems extends StatelessWidget {
     if (n.contains('remix')) return [const Color(0xFFBF360C), const Color(0xFFFF8A65)];
     if (n.contains('text')) return [const Color(0xFF1B5E20), const Color(0xFF66BB6A)];
     if (n.contains('animate')) return [const Color(0xFF0D47A1), const Color(0xFF42A5F5)];
+    if (n.contains('veo')) return [const Color(0xFF1A237E), const Color(0xFF7986CB)];
+    if (n.contains('seedance') || n.contains('seed dance')) return [const Color(0xFF880E4F), const Color(0xFFFF80AB)];
+    if (n.contains('kling')) return [const Color(0xFF004D40), const Color(0xFF80CBC4)];
+    if (n.contains('wan') || n.contains('wanx')) return [const Color(0xFF37474F), const Color(0xFF90A4AE)];
+    if (n.contains('video')) return [const Color(0xFF311B92), const Color(0xFF9575CD)];
     return [kSaffron, kMagenta];
   }
 
@@ -1019,6 +1025,8 @@ class _GlamArcItems extends StatelessWidget {
     if (n.contains('hair')) return Icons.content_cut_outlined;
     if (n.contains('remix')) return Icons.shuffle_rounded;
     if (n.contains('text')) return Icons.text_fields_rounded;
+    if (n.contains('veo') || n.contains('seedance') || n.contains('kling') ||
+        n.contains('wan') || n.contains('video')) return Icons.videocam_rounded;
     return Icons.auto_awesome;
   }
 
