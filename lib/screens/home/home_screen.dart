@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../controllers/auth_controller.dart';
 import '../../controllers/background_orders_controller.dart';
+import '../../controllers/background_tool_jobs_controller.dart';
 import '../../controllers/templates_controller.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
@@ -230,6 +231,7 @@ class _HomeAppBar extends ConsumerWidget implements PreferredSizeWidget {
         const BalanceChip(),
         _ProfileBadgeButton(onTap: () {
           ref.read(backgroundOrdersProvider.notifier).clearCompleted();
+          ref.read(backgroundToolJobsProvider.notifier).clearCompleted();
           context.push('/home/profile');
         }),
       ],
@@ -247,8 +249,9 @@ class _ProfileBadgeButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasCompleted = ref.watch(
-      backgroundOrdersProvider.select((s) => s.hasCompleted),
-    );
+          backgroundOrdersProvider.select((s) => s.hasCompleted)) ||
+        ref.watch(
+            backgroundToolJobsProvider.select((s) => s.hasCompleted));
     return IconButton(
       onPressed: onTap,
       iconSize: 36,

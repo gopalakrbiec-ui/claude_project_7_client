@@ -18,6 +18,7 @@ import '../screens/order_status/order_status_screen.dart';
 import '../screens/agent_earnings/agent_earnings_screen.dart';
 import '../screens/topup/topup_screen.dart';
 import '../screens/tools/tools_screen.dart';
+import '../screens/tool_job_status/tool_job_status_screen.dart';
 
 // ---------------------------------------------------------------------------
 // RouterNotifier — bridges Riverpod auth + locale state into GoRouter.
@@ -152,6 +153,19 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'tools',
             builder: (_, __) => const ToolsScreen(),
+            routes: [
+              GoRoute(
+                path: 'job/:jobId',
+                builder: (_, state) {
+                  final extra = state.extra as Map<String, dynamic>? ?? {};
+                  return ToolJobStatusScreen(
+                    jobId: state.pathParameters['jobId']!,
+                    toolName: extra['toolName'] as String? ?? 'AI Tool',
+                    costDisplay: extra['costDisplay'] as String?,
+                  );
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: 'profile',

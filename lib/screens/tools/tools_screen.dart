@@ -1,15 +1,15 @@
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gal/gal.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+
+import 'package:go_router/go_router.dart';
 
 import '../../api/api_error.dart';
+import '../../controllers/background_tool_jobs_controller.dart';
+import '../../controllers/tool_job_controller.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../repositories/tools_repository.dart';
@@ -379,9 +379,6 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   bool _uploadingTarget = false;
 
   bool _processing = false;
-  String? _processingStatus; // shown under spinner while polling
-  String? _resultUrl;
-  String? _resultCostDisplay;
   String? _error;
 
   @override
@@ -513,22 +510,11 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : Icon(_iconFor(widget.tool.name)),
-              label: Text(_processing
-                  ? (_processingStatus ?? 'Processing…')
-                  : 'Run ${widget.tool.name}'),
+              label: Text(_processing ? 'Submitting…' : 'Run ${widget.tool.name}'),
               style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14)),
             ),
 
-            if (_resultUrl != null) ...[
-              const SizedBox(height: kSpaceLg),
-              _ResultCard(
-                resultUrl: _resultUrl!,
-                costDisplay: _resultCostDisplay,
-                onShare: () => _share(_resultUrl!),
-                onSave: () => _save(_resultUrl!),
-              ),
-            ],
           ],
         ),
       ),
@@ -580,72 +566,51 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   Future<void> _run() async {
     setState(() {
       _processing = true;
-      _processingStatus = 'Submitting…';
       _error = null;
-      _resultUrl = null;
     });
     try {
       final extraFields = _cfg.needsPrompt
           ? {_cfg.promptFieldName: _promptCtrl.text.trim()}
           : null;
 
-      final repo = ref.read(toolsRepositoryProvider);
-      // Merge target photo under its tool-specific field name.
       final allFields = <String, String>{
         if (extraFields != null) ...extraFields,
         if (_cfg.needsTargetPhoto && _targetPhotoKey != null)
           _cfg.targetPhotoFieldName: _targetPhotoKey!,
       };
-      final job = await repo.runTool(
-        widget.tool.id,
-        photoKey: _cfg.needsPhoto ? _sourcePhotoKey : null,
-        extraFields: allFields.isEmpty ? null : allFields,
+
+      final job = await ref.read(toolsRepositoryProvider).runTool(
+            widget.tool.id,
+            photoKey: _cfg.needsPhoto ? _sourcePhotoKey : null,
+            extraFields: allFields.isEmpty ? null : allFields,
+          );
+
+      if (!mounted) return;
+
+      // Start background polling and register with the badge tracker.
+      ref.read(toolJobControllerProvider(job.jobId));
+      ref.read(backgroundToolJobsProvider.notifier).trackJob(job.jobId);
+
+      // Navigate to the status screen — user can browse from there.
+      context.push(
+        '/home/tools/job/${job.jobId}',
+        extra: {
+          'toolName': widget.tool.name,
+          'costDisplay': widget.tool.costDisplay,
+        },
       );
-
-      if (mounted) setState(() => _processingStatus = 'Processing…');
-
-      // Poll every 3 s until done or failed.
-      while (mounted) {
-        await Future<void>.delayed(const Duration(seconds: 3));
-        if (!mounted) return;
-
-        final status = await repo.getToolStatus(job.jobId);
-
-        if (status.isDone) {
-          if (mounted) {
-            setState(() {
-              _resultUrl = status.resultUrl;
-              _resultCostDisplay = status.costDisplay;
-              _processing = false;
-              _processingStatus = null;
-            });
-          }
-          return;
-        }
-
-        if (status.isFailed) {
-          if (mounted) {
-            setState(() {
-              _processing = false;
-              _processingStatus = null;
-              _error = status.error ?? 'AI processing failed. Please try again.';
-            });
-          }
-          return;
-        }
-        // still processing — continue loop
-      }
     } on InsufficientCreditsError catch (e) {
       if (!mounted) return;
-      setState(() { _processing = false; _processingStatus = null; });
+      setState(() => _processing = false);
       InsufficientCreditsDialog.show(context, e);
     } on ApiError catch (e) {
       if (!mounted) return;
       setState(() {
         _processing = false;
-        _processingStatus = null;
         _error = _msg(e);
       });
+    } finally {
+      if (mounted) setState(() => _processing = false);
     }
   }
 
@@ -655,43 +620,6 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
         _ => 'Something went wrong. Please try again.',
       };
 
-  Future<void> _share(String url) async {
-    try {
-      final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/tool_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      await Dio(BaseOptions(
-              connectTimeout: const Duration(seconds: 15),
-              receiveTimeout: const Duration(seconds: 60)))
-          .download(url, path);
-      await Share.shareXFiles([XFile(path)], text: 'Made with Yaadein AI Tools! ✨');
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Could not share image.')));
-      }
-    }
-  }
-
-  Future<void> _save(String url) async {
-    try {
-      final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/tool_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      await Dio(BaseOptions(
-              connectTimeout: const Duration(seconds: 15),
-              receiveTimeout: const Duration(seconds: 60)))
-          .download(url, path);
-      await Gal.putImage(path);
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Saved to gallery!')));
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Could not save image.')));
-      }
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -787,74 +715,6 @@ class _PhotoPicker extends StatelessWidget {
                 ],
               ),
       ),
-    );
-  }
-}
-
-class _ResultCard extends StatelessWidget {
-  const _ResultCard({
-    required this.resultUrl,
-    required this.onShare,
-    required this.onSave,
-    this.costDisplay,
-  });
-
-  final String resultUrl;
-  final String? costDisplay;
-  final VoidCallback onShare;
-  final VoidCallback onSave;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          decoration: const BoxDecoration(gradient: kBrandGradient),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                costDisplay != null
-                    ? 'Done! $costDisplay deducted'
-                    : 'Your result is ready!',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: kSpaceMd),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: CachedNetworkImage(
-            imageUrl: resultUrl,
-            fit: BoxFit.contain,
-            placeholder: (_, __) => const SizedBox(
-                height: 200,
-                child: Center(child: CircularProgressIndicator())),
-            errorWidget: (_, __, ___) =>
-                const Center(child: Icon(Icons.broken_image_outlined, size: 72)),
-          ),
-        ),
-        const SizedBox(height: kSpaceMd),
-        ElevatedButton.icon(
-          onPressed: onShare,
-          icon: const Icon(Icons.share_rounded),
-          label: const Text('Share on WhatsApp'),
-        ),
-        const SizedBox(height: kSpaceSm),
-        OutlinedButton.icon(
-          onPressed: onSave,
-          icon: const Icon(Icons.save_alt_rounded),
-          label: const Text('Save to Phone'),
-        ),
-      ],
     );
   }
 }
