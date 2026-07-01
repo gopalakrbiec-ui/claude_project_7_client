@@ -68,18 +68,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const _VideoTab(),
             ],
           ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: _toggleToolsMenu,
-            backgroundColor: _showToolsMenu ? Colors.white : kSaffron,
-            foregroundColor: _showToolsMenu ? kSaffron : Colors.white,
-            elevation: 6,
-            shape: const CircleBorder(),
-            child: AnimatedRotation(
-              turns: _showToolsMenu ? 0.125 : 0,
-              duration: const Duration(milliseconds: 250),
-              child: Icon(
-                  _showToolsMenu ? Icons.close : Icons.auto_awesome,
-                  size: 28),
+          floatingActionButton: Container(
+            decoration: _showToolsMenu
+                ? BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                          color: kSaffron.withValues(alpha: 0.6),
+                          blurRadius: 20,
+                          spreadRadius: 4),
+                      BoxShadow(
+                          color: kMagenta.withValues(alpha: 0.4),
+                          blurRadius: 36,
+                          spreadRadius: 6),
+                    ],
+                  )
+                : null,
+            child: FloatingActionButton(
+              onPressed: _toggleToolsMenu,
+              backgroundColor: _showToolsMenu ? Colors.white : kSaffron,
+              foregroundColor: _showToolsMenu ? kSaffron : Colors.white,
+              elevation: _showToolsMenu ? 0 : 6,
+              shape: const CircleBorder(),
+              child: AnimatedRotation(
+                turns: _showToolsMenu ? 0.125 : 0,
+                duration: const Duration(milliseconds: 300),
+                child: Icon(
+                    _showToolsMenu ? Icons.close : Icons.auto_awesome,
+                    size: 28),
+              ),
             ),
           ),
           floatingActionButtonLocation:
@@ -743,7 +760,7 @@ class _FallbackThumb extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Radial tools menu — half-circle arc overlay rising from bottom centre
+// Glamorous radial tools menu — animated arc overlay with per-tool gradients
 // ---------------------------------------------------------------------------
 class _RadialToolsMenu extends StatefulWidget {
   const _RadialToolsMenu({
@@ -761,45 +778,137 @@ class _RadialToolsMenu extends StatefulWidget {
 }
 
 class _RadialToolsMenuState extends State<_RadialToolsMenu>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _fade;
-  late final Animation<double> _scale;
+    with TickerProviderStateMixin {
+  late final AnimationController _bgCtrl;
+  late final AnimationController _pulseCtrl;
+  late final AnimationController _itemsCtrl;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 280));
-    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
-    _scale = Tween<double>(begin: 0.6, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack));
-    _ctrl.forward();
+    _bgCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 350))
+      ..forward();
+    _pulseCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat(reverse: true);
+    _itemsCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 700))
+      ..forward();
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _bgCtrl.dispose();
+    _pulseCtrl.dispose();
+    _itemsCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _fade,
+    final size = MediaQuery.sizeOf(context);
+    final cx = size.width / 2;
+    final fabY = size.height - 36.0; // approx FAB centre above bottom nav
+
+    return AnimatedBuilder(
+      animation: _bgCtrl,
+      builder: (_, child) => Opacity(
+        opacity: CurvedAnimation(parent: _bgCtrl, curve: Curves.easeOut).value,
+        child: child,
+      ),
       child: GestureDetector(
         onTap: widget.onClose,
         behavior: HitTestBehavior.opaque,
         child: Container(
-          color: Colors.black.withValues(alpha: 0.72),
-          child: widget.toolsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, __) => const SizedBox.shrink(),
-            data: (tools) => _ArcItems(
-              tools: tools,
-              scaleAnim: _scale,
-              onToolTap: widget.onToolTap,
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment(0, 1.15),
+              radius: 1.5,
+              colors: const [Color(0xE8160C2C), Color(0xD9000000)],
             ),
+          ),
+          child: Stack(
+            children: [
+              // Pulsing glow ring behind FAB
+              AnimatedBuilder(
+                animation: _pulseCtrl,
+                builder: (_, __) {
+                  final r = 48.0 + 28.0 * _pulseCtrl.value;
+                  final alpha = 0.35 - 0.28 * _pulseCtrl.value;
+                  return Positioned(
+                    left: cx - r,
+                    top: fabY - r,
+                    child: Container(
+                      width: r * 2,
+                      height: r * 2,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(colors: [
+                          kSaffron.withValues(alpha: alpha),
+                          kMagenta.withValues(alpha: 0),
+                        ]),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              // Title label
+              Positioned(
+                top: size.height * 0.28,
+                left: 0,
+                right: 0,
+                child: AnimatedBuilder(
+                  animation: _itemsCtrl,
+                  builder: (_, __) => Opacity(
+                    opacity: CurvedAnimation(
+                      parent: _itemsCtrl,
+                      curve: const Interval(0.4, 1.0, curve: Curves.easeOut),
+                    ).value,
+                    child: const Column(
+                      children: [
+                        Text(
+                          '✦  AI Magic Tools  ✦',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.5,
+                            shadows: [
+                              Shadow(color: kSaffron, blurRadius: 12),
+                              Shadow(color: kMagenta, blurRadius: 24),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Tap a tool to get started',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0x99FFFFFF),
+                            fontSize: 12,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Tool items
+              widget.toolsAsync.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(color: Colors.white54),
+                ),
+                error: (_, __) => const SizedBox.shrink(),
+                data: (tools) => _GlamArcItems(
+                  tools: tools,
+                  ctrl: _itemsCtrl,
+                  onToolTap: widget.onToolTap,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -807,101 +916,36 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
   }
 }
 
-class _ArcItems extends StatelessWidget {
-  const _ArcItems({
+// ---------------------------------------------------------------------------
+// Arc layout with staggered spring animations
+// ---------------------------------------------------------------------------
+class _GlamArcItems extends StatelessWidget {
+  const _GlamArcItems({
     required this.tools,
-    required this.scaleAnim,
+    required this.ctrl,
     required this.onToolTap,
   });
 
   final List<AiToolDef> tools;
-  final Animation<double> scaleAnim;
+  final AnimationController ctrl;
   final void Function(AiToolDef) onToolTap;
 
-  static const _itemSize = 72.0;
-  static const _labelHeight = 20.0;
+  static const _btnSize = 62.0;
+  static const _totalSlot = 90.0; // button + label height
 
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final cx = size.width / 2;
-    // Anchor slightly above the bottom nav bar + FAB
-    final cy = size.height - 60.0;
-    final radius = size.height * 0.38;
-
-    final count = tools.length;
-    // Spread angles from ~160° to ~20° (left to right through the top)
-    final startAngle = math.pi * 0.9;
-    final endAngle = math.pi * 0.1;
-    final step = count > 1 ? (endAngle - startAngle) / (count - 1) : 0.0;
-
-    return Stack(
-      children: [
-        for (var i = 0; i < count; i++)
-          _buildItem(tools[i], cx, cy, radius, startAngle + step * i),
-      ],
-    );
+  static List<Color> _colorsFor(String id) {
+    final n = id.toLowerCase();
+    if (n.contains('filter')) return [const Color(0xFF7B1FA2), const Color(0xFFCE93D8)];
+    if (n.contains('background')) return [const Color(0xFF00695C), const Color(0xFF4DB6AC)];
+    if (n.contains('outfit')) return [const Color(0xFF880E4F), const Color(0xFFF06292)];
+    if (n.contains('hair')) return [const Color(0xFF4A148C), const Color(0xFFBA68C8)];
+    if (n.contains('remix')) return [const Color(0xFFBF360C), const Color(0xFFFF8A65)];
+    if (n.contains('text')) return [const Color(0xFF1B5E20), const Color(0xFF66BB6A)];
+    if (n.contains('animate')) return [const Color(0xFF0D47A1), const Color(0xFF42A5F5)];
+    return [kSaffron, kMagenta];
   }
 
-  Widget _buildItem(
-      AiToolDef tool, double cx, double cy, double radius, double angle) {
-    final dx = cx + radius * math.cos(angle) - _itemSize / 2;
-    // Flutter y-axis grows downward, so subtract to fan items upward.
-    final dy = cy - radius * math.sin(angle) - _itemSize / 2 - _labelHeight;
-
-    return Positioned(
-      left: dx,
-      top: dy,
-      child: ScaleTransition(
-        scale: scaleAnim,
-        child: GestureDetector(
-          onTap: () => onToolTap(tool),
-          child: SizedBox(
-            width: _itemSize,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: _itemSize,
-                  height: _itemSize,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E2E),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.15), width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Icon(_iconFor(tool.id),
-                      color: Colors.white, size: 30),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  tool.name,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  IconData _iconFor(String id) {
+  static IconData _iconFor(String id) {
     final n = id.toLowerCase();
     if (n.contains('filter')) return Icons.auto_fix_high;
     if (n.contains('outfit')) return Icons.checkroom_outlined;
@@ -909,6 +953,148 @@ class _ArcItems extends StatelessWidget {
     if (n.contains('background')) return Icons.wallpaper_rounded;
     if (n.contains('hair')) return Icons.content_cut_outlined;
     if (n.contains('remix')) return Icons.shuffle_rounded;
+    if (n.contains('text')) return Icons.text_fields_rounded;
     return Icons.auto_awesome;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final cx = size.width / 2;
+    // Anchor at bottom nav midline
+    final cy = size.height - 36.0;
+
+    // Compute a radius that keeps edge items on-screen with 16dp padding.
+    // cos(startAngle) is negative for the leftmost item.
+    const startDeg = 155.0;
+    const endDeg = 25.0;
+    final startAngle = startDeg * math.pi / 180;
+    final endAngle = endDeg * math.pi / 180;
+    final maxR = (cx - 16 - _btnSize / 2) / math.cos(math.pi - startAngle).abs();
+    final radius = maxR.clamp(100.0, 175.0);
+
+    final n = tools.length;
+    return Stack(
+      children: [
+        for (var i = 0; i < n; i++) _buildItem(context, tools[i], i, n,
+            cx, cy, radius, startAngle, endAngle),
+      ],
+    );
+  }
+
+  Widget _buildItem(
+    BuildContext context,
+    AiToolDef tool,
+    int i,
+    int n,
+    double cx,
+    double cy,
+    double radius,
+    double startAngle,
+    double endAngle,
+  ) {
+    final angle = n == 1
+        ? math.pi / 2
+        : startAngle + (endAngle - startAngle) * i / (n - 1);
+
+    final targetDx = cx + radius * math.cos(angle) - _btnSize / 2;
+    final targetDy = cy - radius * math.sin(angle) - _totalSlot / 2;
+
+    // Stagger: item i starts at t=i*0.07, runs for 0.55 of the total
+    final t0 = (i * 0.07).clamp(0.0, 0.45);
+    final t1 = (t0 + 0.55).clamp(0.0, 1.0);
+    final springAnim = CurvedAnimation(
+      parent: ctrl,
+      curve: Interval(t0, t1, curve: Curves.elasticOut),
+    );
+    final fadeAnim = CurvedAnimation(
+      parent: ctrl,
+      curve: Interval(t0, (t0 + 0.25).clamp(0.0, 1.0), curve: Curves.easeOut),
+    );
+
+    // Items animate from FAB position (cx, cy) outward to their target
+    final colors = _colorsFor(tool.id);
+    final icon = _iconFor(tool.id);
+
+    return AnimatedBuilder(
+      animation: ctrl,
+      builder: (_, __) {
+        final t = springAnim.value;
+        final left = cx - _btnSize / 2 + (targetDx - (cx - _btnSize / 2)) * t;
+        final top = cy - _totalSlot / 2 + (targetDy - (cy - _totalSlot / 2)) * t;
+        return Positioned(
+          left: left,
+          top: top,
+          child: Opacity(
+            opacity: fadeAnim.value.clamp(0.0, 1.0),
+            child: GestureDetector(
+              onTap: () => onToolTap(tool),
+              child: SizedBox(
+                width: _btnSize,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Glow aura + gradient button
+                    Container(
+                      width: _btnSize + 10,
+                      height: _btnSize + 10,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: colors[0].withValues(alpha: 0.55),
+                            blurRadius: 22,
+                            spreadRadius: 3,
+                          ),
+                          BoxShadow(
+                            color: colors[1].withValues(alpha: 0.25),
+                            blurRadius: 40,
+                            spreadRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: Container(
+                        margin: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: colors,
+                          ),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.40),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Icon(icon, color: Colors.white,
+                            size: _btnSize * 0.40),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      tool.name,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        height: 1.2,
+                        shadows: [
+                          Shadow(color: Colors.black, blurRadius: 8),
+                          Shadow(color: Colors.black, blurRadius: 16),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }
