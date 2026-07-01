@@ -17,6 +17,6 @@ class CreditsBalance {
 
   factory CreditsBalance.fromJson(Map<String, dynamic> json) => CreditsBalance(
         balancePaise: json['balance_paise'] as int,
-        balanceRupees: json['balance_rupees'] as String,
+        balanceRupees: (json['balance_rupees'] as String).replaceFirst(r'$', '₹'),
       );
 }
