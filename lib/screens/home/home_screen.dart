@@ -846,7 +846,8 @@ class _ArcItems extends StatelessWidget {
   Widget _buildItem(
       AiToolDef tool, double cx, double cy, double radius, double angle) {
     final dx = cx + radius * math.cos(angle) - _itemSize / 2;
-    final dy = cy + radius * math.sin(angle) - _itemSize / 2 - _labelHeight;
+    // Flutter y-axis grows downward, so subtract to fan items upward.
+    final dy = cy - radius * math.sin(angle) - _itemSize / 2 - _labelHeight;
 
     return Positioned(
       left: dx,
