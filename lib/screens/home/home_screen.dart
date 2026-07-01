@@ -808,8 +808,11 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
+    final mq = MediaQuery.of(context);
     final cx = size.width / 2;
-    final fabY = size.height - 36.0; // approx FAB centre above bottom nav
+    // FAB center = screen height − system nav bar − bottom bar + FAB half-height
+    final bottomInset = mq.viewPadding.bottom;
+    final fabY = size.height - bottomInset - 72 + 28;
 
     return AnimatedBuilder(
       animation: _bgCtrl,
@@ -930,8 +933,8 @@ class _GlamArcItems extends StatelessWidget {
   final AnimationController ctrl;
   final void Function(AiToolDef) onToolTap;
 
-  static const _btnSize = 62.0;
-  static const _totalSlot = 90.0; // button + label height
+  static const _btnSize = 52.0;
+  static const _totalSlot = 76.0; // button + label height
 
   static List<Color> _colorsFor(String id) {
     final n = id.toLowerCase();
@@ -959,19 +962,22 @@ class _GlamArcItems extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
+    final mq = MediaQuery.of(context);
+    final size = mq.size;
     final cx = size.width / 2;
-    // Anchor at bottom nav midline
-    final cy = size.height - 36.0;
+    // FAB centre — same formula as _RadialToolsMenuState so glow and items align
+    final bottomInset = mq.viewPadding.bottom;
+    final cy = size.height - bottomInset - 72 + 28;
 
-    // Compute a radius that keeps edge items on-screen with 16dp padding.
-    // cos(startAngle) is negative for the leftmost item.
-    const startDeg = 155.0;
-    const endDeg = 25.0;
+    // Arc from 150° to 30° (120° spread). At 30° sin≈0.5, so items land
+    // at least radius/2 above cy — enough to clear the ribbon.
+    const startDeg = 150.0;
+    const endDeg = 30.0;
     final startAngle = startDeg * math.pi / 180;
     final endAngle = endDeg * math.pi / 180;
+    // Keep edge items inside screen with 16dp margin
     final maxR = (cx - 16 - _btnSize / 2) / math.cos(math.pi - startAngle).abs();
-    final radius = maxR.clamp(100.0, 175.0);
+    final radius = maxR.clamp(130.0, 185.0);
 
     final n = tools.length;
     return Stack(
@@ -1036,8 +1042,8 @@ class _GlamArcItems extends StatelessWidget {
                   children: [
                     // Glow aura + gradient button
                     Container(
-                      width: _btnSize + 10,
-                      height: _btnSize + 10,
+                      width: _btnSize + 8,
+                      height: _btnSize + 8,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         boxShadow: [
@@ -1068,7 +1074,7 @@ class _GlamArcItems extends StatelessWidget {
                           ),
                         ),
                         child: Icon(icon, color: Colors.white,
-                            size: _btnSize * 0.40),
+                            size: _btnSize * 0.42),
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -1079,7 +1085,7 @@ class _GlamArcItems extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 10.5,
+                        fontSize: 9.5,
                         fontWeight: FontWeight.w600,
                         height: 1.2,
                         shadows: [
