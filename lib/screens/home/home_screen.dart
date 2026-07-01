@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -22,6 +24,14 @@ import '../../widgets/balance_chip.dart';
 import '../../widgets/error_view.dart';
 import '../../widgets/skeleton_card.dart';
 import '../../widgets/template_card.dart';
+
+// ---------------------------------------------------------------------------
+// Profile picture path (from SharedPreferences, set in profile screen)
+// ---------------------------------------------------------------------------
+final _profilePicPathProvider = FutureProvider<String?>((ref) async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString('profile_pic_path');
+});
 
 // ---------------------------------------------------------------------------
 // My Orders provider
@@ -310,6 +320,15 @@ class _ProfileBadgeButton extends ConsumerWidget {
           backgroundOrdersProvider.select((s) => s.hasCompleted)) ||
         ref.watch(
             backgroundToolJobsProvider.select((s) => s.hasCompleted));
+    final picPath = ref.watch(_profilePicPathProvider).valueOrNull;
+
+    final Widget avatar = picPath != null
+        ? ClipOval(
+            child: Image.file(File(picPath),
+                width: 36, height: 36, fit: BoxFit.cover),
+          )
+        : const Icon(Icons.account_circle_outlined, size: 36);
+
     return IconButton(
       onPressed: onTap,
       iconSize: 36,
@@ -317,7 +336,7 @@ class _ProfileBadgeButton extends ConsumerWidget {
       icon: Badge(
         isLabelVisible: hasCompleted,
         backgroundColor: Colors.red,
-        child: const Icon(Icons.account_circle_outlined, size: 36),
+        child: avatar,
       ),
     );
   }

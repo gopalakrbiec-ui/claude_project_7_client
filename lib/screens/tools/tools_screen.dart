@@ -1,9 +1,11 @@
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'package:go_router/go_router.dart';
 
@@ -455,8 +457,11 @@ class _ToolCard extends StatelessWidget {
 // Tool work screen
 // ---------------------------------------------------------------------------
 class ToolWorkScreen extends ConsumerStatefulWidget {
-  const ToolWorkScreen({super.key, required this.tool});
+  const ToolWorkScreen({super.key, required this.tool, this.preloadedSourceUrl});
   final AiToolDef tool;
+  // When set, the screen downloads this URL and pre-fills the source photo
+  // (used by "Animate This" on result screens).
+  final String? preloadedSourceUrl;
 
   @override
   ConsumerState<ToolWorkScreen> createState() => _ToolWorkScreenState();
@@ -483,9 +488,45 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.preloadedSourceUrl != null && _cfg.needsPhoto) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _preloadSourcePhoto());
+    }
+  }
+
+  @override
   void dispose() {
     _promptCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _preloadSourcePhoto() async {
+    final url = widget.preloadedSourceUrl;
+    if (url == null || !mounted) return;
+    setState(() { _uploadingSource = true; _error = null; });
+    try {
+      final dir = await getTemporaryDirectory();
+      final path = '${dir.path}/preload_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 60),
+      ));
+      await dio.download(url, path);
+      if (!mounted) return;
+      final file = File(path);
+      setState(() => _sourcePhoto = file);
+      final key = await ref.read(toolsRepositoryProvider).uploadPhoto(file);
+      if (!mounted) return;
+      setState(() { _sourcePhotoKey = key; _uploadingSource = false; });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _uploadingSource = false;
+          _error = 'Could not load image automatically. Please pick one manually.';
+        });
+      }
+    }
   }
 
   bool get _canRun {

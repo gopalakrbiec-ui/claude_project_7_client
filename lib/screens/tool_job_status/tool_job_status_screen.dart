@@ -14,6 +14,8 @@ import 'package:video_player/video_player.dart';
 import '../../controllers/tool_job_controller.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
+import '../../repositories/tools_repository.dart' show AiToolDef;
+import '../tools/tools_screen.dart' show toolsListProvider, ToolWorkScreen;
 
 // Theme colours
 const _kSaffron = Color(0xFFFF6B23);
@@ -95,12 +97,16 @@ class _ToolJobStatusScreenState extends ConsumerState<ToolJobStatusScreen> {
         return _PollingBody(key: const ValueKey('polling'));
 
       case ToolJobPhase.done:
+        final isVideo = state.resultUrl != null &&
+            (state.resultUrl!.endsWith('.mp4') ||
+                state.resultUrl!.contains('.mp4?'));
         return _DoneBody(
           resultUrl: state.resultUrl,
           costDisplay: state.costPaise > 0 ? state.costDisplay : widget.costDisplay,
           isDownloading: _isDownloading,
           onShare: () => _share(state.resultUrl),
           onSave: () => _save(state.resultUrl),
+          onAnimate: isVideo ? null : () => _animateThis(state.resultUrl),
           key: const ValueKey('done'),
         );
 
@@ -144,6 +150,27 @@ class _ToolJobStatusScreenState extends ConsumerState<ToolJobStatusScreen> {
               .retry(),
           key: const ValueKey('networkError'),
         );
+    }
+  }
+
+  Future<void> _animateThis(String? resultUrl) async {
+    if (resultUrl == null) return;
+    try {
+      final tools = await ref.read(toolsListProvider.future);
+      AiToolDef? animateTool;
+      for (final t in tools) {
+        if (t.name.toLowerCase().contains('animate')) { animateTool = t; break; }
+      }
+      if (animateTool == null || !mounted) return;
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ToolWorkScreen(tool: animateTool!, preloadedSourceUrl: resultUrl),
+      ));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not load animation tool. Please try from the tools menu.'),
+        ));
+      }
     }
   }
 
@@ -496,6 +523,7 @@ class _DoneBody extends StatelessWidget {
     required this.isDownloading,
     required this.onShare,
     required this.onSave,
+    this.onAnimate,
   });
 
   final String? resultUrl;
@@ -503,6 +531,7 @@ class _DoneBody extends StatelessWidget {
   final bool isDownloading;
   final VoidCallback onShare;
   final VoidCallback onSave;
+  final VoidCallback? onAnimate;
 
   bool get _isVideo =>
       resultUrl != null &&
@@ -513,6 +542,32 @@ class _DoneBody extends StatelessWidget {
     final theme = Theme.of(context);
     return Column(
       children: [
+        if (onAnimate != null)
+          InkWell(
+            onTap: onAnimate,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 11),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF0D47A1), Color(0xFF42A5F5)],
+                ),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.play_circle_outline_rounded,
+                      color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Text('✨  Animate This',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14)),
+                ],
+              ),
+            ),
+          ),
         Expanded(
           child: resultUrl != null
               ? _isVideo

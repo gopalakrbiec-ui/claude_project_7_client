@@ -15,6 +15,8 @@ import 'package:share_plus/share_plus.dart';
 import '../../controllers/order_status_controller.dart';
 import '../../core/constants.dart';
 import '../../models/order.dart';
+import '../../repositories/tools_repository.dart' show AiToolDef;
+import '../tools/tools_screen.dart' show toolsListProvider, ToolWorkScreen;
 
 // ---------------------------------------------------------------------------
 // Screen entry point
@@ -93,6 +95,7 @@ class _OrderStatusScreenState extends ConsumerState<OrderStatusScreen> {
           onRemoveWatermark: () => ref
               .read(orderStatusControllerProvider(widget.orderId).notifier)
               .removeWatermark(),
+          onAnimate: () => _animateThis(state.displayUrl),
           key: const ValueKey('done'),
         );
 
@@ -145,6 +148,27 @@ class _OrderStatusScreenState extends ConsumerState<OrderStatusScreen> {
   }
 
   // -- Download helpers (presentational, not business logic) ----------------
+
+  Future<void> _animateThis(String? displayUrl) async {
+    if (displayUrl == null) return;
+    try {
+      final tools = await ref.read(toolsListProvider.future);
+      AiToolDef? animateTool;
+      for (final t in tools) {
+        if (t.name.toLowerCase().contains('animate')) { animateTool = t; break; }
+      }
+      if (animateTool == null || !mounted) return;
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ToolWorkScreen(tool: animateTool!, preloadedSourceUrl: displayUrl),
+      ));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not load animation tool. Please try from the tools menu.'),
+        ));
+      }
+    }
+  }
 
   Future<File> _downloadFile(String? url) async {
     if (url == null) throw Exception('No result URL available');
@@ -580,6 +604,7 @@ class _DoneBody extends StatelessWidget {
     required this.onShare,
     required this.onSave,
     required this.onRemoveWatermark,
+    this.onAnimate,
   });
 
   final OrderStatusState state;
@@ -587,6 +612,7 @@ class _DoneBody extends StatelessWidget {
   final VoidCallback onShare;
   final VoidCallback onSave;
   final VoidCallback onRemoveWatermark;
+  final VoidCallback? onAnimate;
 
   @override
   Widget build(BuildContext context) {
@@ -598,6 +624,33 @@ class _DoneBody extends StatelessWidget {
 
     return Column(
       children: [
+        // "Animate This" banner — above the image
+        if (onAnimate != null)
+          InkWell(
+            onTap: onAnimate,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 11),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF0D47A1), Color(0xFF42A5F5)],
+                ),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.play_circle_outline_rounded,
+                      color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Text('✨  Animate This',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14)),
+                ],
+              ),
+            ),
+          ),
         // Result image — takes the majority of the screen
         Expanded(
           child: _ResultImage(url: displayUrl),
