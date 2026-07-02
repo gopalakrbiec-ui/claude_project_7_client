@@ -162,7 +162,9 @@ class AuthController extends Notifier<AuthState> {
     final storage = ref.read(tokenStorageProvider);
     await storage.writeToken(result.accessToken);
     await storage.writeRole(result.role);
-    final profile = UserProfile(id: '', phone: identifier, role: result.role);
+    // identifier may be an email — don't store it as phone; leave phone blank
+    // so the background /auth/me refresh fills in the real profile.
+    final profile = UserProfile(id: '', phone: '', role: result.role);
     state = AuthAuthenticated(profile: profile, isNewUser: result.isNewUser);
   }
 
