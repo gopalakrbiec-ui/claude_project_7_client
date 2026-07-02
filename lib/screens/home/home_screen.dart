@@ -762,6 +762,11 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
   double _wheelRotation = 0.0;
   Animation<double>? _snapAnim;
 
+  // Angle-based pan tracking
+  Offset? _lastPanPos;
+  double _cx = 0;
+  double _cy = 0;
+
   @override
   void initState() {
     super.initState();
@@ -775,7 +780,7 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
         vsync: this, duration: const Duration(milliseconds: 700))
       ..forward();
     _snapCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 380));
+        vsync: this, duration: const Duration(milliseconds: 320));
     _snapCtrl.addListener(_onSnapTick);
   }
 
@@ -793,9 +798,30 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
     super.dispose();
   }
 
-  void _onDragUpdate(DragUpdateDetails d, double radius) {
+  void _onPanStart(DragStartDetails d) {
     if (_snapCtrl.isAnimating) _snapCtrl.stop();
-    setState(() => _wheelRotation += d.delta.dx / radius);
+    _lastPanPos = d.localPosition;
+  }
+
+  void _onPanUpdate(DragUpdateDetails d) {
+    final prev = _lastPanPos;
+    if (prev == null) return;
+    final curr = d.localPosition;
+
+    final prevAngle = math.atan2(-(prev.dy - _cy), prev.dx - _cx);
+    final currAngle = math.atan2(-(curr.dy - _cy), curr.dx - _cx);
+
+    var delta = currAngle - prevAngle;
+    if (delta > math.pi) delta -= 2 * math.pi;
+    if (delta < -math.pi) delta += 2 * math.pi;
+
+    setState(() => _wheelRotation += delta);
+    _lastPanPos = curr;
+  }
+
+  void _onPanEnd(DragEndDetails d, int n) {
+    _lastPanPos = null;
+    _snapToNearest(n);
   }
 
   void _snapToNearest(int n) {
@@ -807,7 +833,7 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
         ? _wheelRotation - offset
         : _wheelRotation - offset + spacing;
     _snapAnim = Tween<double>(begin: _wheelRotation, end: snapTo).animate(
-        CurvedAnimation(parent: _snapCtrl, curve: Curves.easeOutBack));
+        CurvedAnimation(parent: _snapCtrl, curve: Curves.easeOutCubic));
     _snapCtrl.forward(from: 0);
   }
 
@@ -826,6 +852,10 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
         math.cos(math.pi - 150.0 * math.pi / 180).abs();
     final radius = maxR.clamp(140.0, 200.0);
 
+    // Store for angle-based pan tracking
+    _cx = cx;
+    _cy = cy;
+
     final toolCount = widget.toolsAsync.maybeWhen(
         data: (t) => t.length, orElse: () => 0);
 
@@ -837,8 +867,9 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
       ),
       child: GestureDetector(
         onTap: widget.onClose,
-        onHorizontalDragUpdate: (d) => _onDragUpdate(d, radius),
-        onHorizontalDragEnd: (_) => _snapToNearest(toolCount),
+        onPanStart: _onPanStart,
+        onPanUpdate: _onPanUpdate,
+        onPanEnd: (d) => _onPanEnd(d, toolCount),
         behavior: HitTestBehavior.opaque,
         child: Container(
           decoration: const BoxDecoration(
@@ -875,7 +906,7 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
               ),
               // Title label
               Positioned(
-                top: size.height * 0.12,
+                top: size.height * 0.10,
                 left: 0,
                 right: 0,
                 child: AnimatedBuilder(
@@ -885,30 +916,44 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
                       parent: _itemsCtrl,
                       curve: const Interval(0.4, 1.0, curve: Curves.easeOut),
                     ).value,
-                    child: const Column(
+                    child: Column(
                       children: [
-                        Text(
-                          '✦  AI Magic Tools  ✦',
+                        ShaderMask(
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [kSaffron, kMagenta],
+                          ).createShader(bounds),
+                          child: const Icon(
+                            Icons.auto_awesome,
+                            color: Colors.white,
+                            size: 36,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'AI Magic Tools',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.5,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                            decoration: TextDecoration.none,
                             shadows: [
-                              Shadow(color: kSaffron, blurRadius: 12),
-                              Shadow(color: kMagenta, blurRadius: 24),
+                              Shadow(color: kSaffron, blurRadius: 16),
+                              Shadow(color: kMagenta, blurRadius: 32),
                             ],
                           ),
                         ),
-                        SizedBox(height: 4),
-                        Text(
+                        const SizedBox(height: 6),
+                        const Text(
                           'Swipe to spin  ·  Tap to use',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Color(0x99FFFFFF),
-                            fontSize: 12,
-                            letterSpacing: 0.4,
+                            color: Color(0xAAFFFFFF),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 0.3,
+                            decoration: TextDecoration.none,
                           ),
                         ),
                       ],

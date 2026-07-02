@@ -397,6 +397,138 @@ class _PhotoCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
+// Tool picker bottom sheet
+// ---------------------------------------------------------------------------
+class _ToolPickerSheet extends StatelessWidget {
+  const _ToolPickerSheet({required this.tools});
+  final List<AiToolDef> tools;
+
+  static List<Color> _colorsFor(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('background')) return [const Color(0xFF00695C), const Color(0xFF4DB6AC)];
+    if (n.contains('photo merge') || n.contains('photo-merge')) return [const Color(0xFFE65100), const Color(0xFFFFB74D)];
+    if (n.contains('outfit')) return [const Color(0xFF880E4F), const Color(0xFFF06292)];
+    if (n.contains('filter')) return [const Color(0xFF7B1FA2), const Color(0xFFCE93D8)];
+    if (n.contains('hair')) return [const Color(0xFF4A148C), const Color(0xFFBA68C8)];
+    if (n.contains('remix')) return [const Color(0xFFBF360C), const Color(0xFFFF8A65)];
+    if (n.contains('animate')) return [const Color(0xFF0D47A1), const Color(0xFF42A5F5)];
+    if (n.contains('veo')) return [const Color(0xFF1A237E), const Color(0xFF7986CB)];
+    if (n.contains('seedance')) return [const Color(0xFF880E4F), const Color(0xFFFF80AB)];
+    if (n.contains('kling')) return [const Color(0xFF004D40), const Color(0xFF80CBC4)];
+    if (n.contains('wan')) return [const Color(0xFF37474F), const Color(0xFF90A4AE)];
+    if (n.contains('video')) return [const Color(0xFF311B92), const Color(0xFF9575CD)];
+    return [kSaffron, kMagenta];
+  }
+
+  static IconData _iconFor(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('background')) return Icons.wallpaper_rounded;
+    if (n.contains('photo merge') || n.contains('photo-merge')) return Icons.merge_type_rounded;
+    if (n.contains('outfit')) return Icons.checkroom_outlined;
+    if (n.contains('filter')) return Icons.auto_fix_high;
+    if (n.contains('animate')) return Icons.play_circle_outline_rounded;
+    if (n.contains('hair')) return Icons.content_cut_outlined;
+    if (n.contains('remix')) return Icons.shuffle_rounded;
+    if (n.contains('veo') || n.contains('seedance') || n.contains('kling') ||
+        n.contains('wan') || n.contains('video')) return Icons.videocam_rounded;
+    return Icons.auto_awesome;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.outlineVariant,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: kSpaceMd),
+            child: Row(
+              children: [
+                const Icon(Icons.auto_awesome, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Choose an AI Tool',
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: kSpaceMd),
+            child: Text(
+              'The selected photo will be used as input',
+              style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.5,
+            ),
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(
+                  kSpaceMd, 0, kSpaceMd, kSpaceMd),
+              itemCount: tools.length,
+              itemBuilder: (ctx, i) {
+                final tool = tools[i];
+                final colors = _colorsFor(tool.name);
+                final icon = _iconFor(tool.name);
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  leading: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                          colors: colors,
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight),
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 22),
+                  ),
+                  title: Text(tool.name,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: tool.costDisplay.isNotEmpty
+                      ? Text(tool.costDisplay,
+                          style: TextStyle(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 12))
+                      : null,
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(ctx).pop(tool),
+                );
+              },
+            ),
+          ),
+          SizedBox(height: MediaQuery.viewPaddingOf(context).bottom),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Full-screen preview bottom sheet
 // ---------------------------------------------------------------------------
 class _PreviewSheet extends ConsumerStatefulWidget {
@@ -438,33 +570,39 @@ class _PreviewSheetState extends ConsumerState<_PreviewSheet> {
     }
   }
 
-  Future<void> _useAsBackground() async {
-    Navigator.of(context).pop();
+  Future<void> _showToolPicker() async {
+    List<AiToolDef> tools;
     try {
-      final tools = await ref.read(toolsListProvider.future);
-      AiToolDef? bgTool;
-      for (final t in tools) {
-        if (t.name.toLowerCase().contains('background')) {
-          bgTool = t;
-          break;
-        }
-      }
-      if (bgTool == null || !mounted) return;
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => ToolWorkScreen(
-          tool: bgTool!,
-          preloadedSourceUrl: widget.photo.fullUrl,
-        ),
-      ));
+      tools = await ref.read(toolsListProvider.future);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Could not open Background tool. Try from the tools menu.')),
+          const SnackBar(content: Text('Could not load tools. Please try again.')),
         );
       }
+      return;
     }
+    if (!mounted) return;
+
+    final selectedTool = await showModalBottomSheet<AiToolDef>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ToolPickerSheet(tools: tools),
+    );
+
+    if (selectedTool == null || !mounted) return;
+    Navigator.of(context).pop(); // close preview sheet
+
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (!mounted) return;
+
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ToolWorkScreen(
+        tool: selectedTool,
+        preloadedSourceUrl: widget.photo.fullUrl,
+      ),
+    ));
   }
 
   @override
@@ -569,9 +707,9 @@ class _PreviewSheetState extends ConsumerState<_PreviewSheet> {
                 Expanded(
                   flex: 2,
                   child: FilledButton.icon(
-                    onPressed: _useAsBackground,
-                    icon: const Icon(Icons.wallpaper_rounded),
-                    label: const Text('Use as Background'),
+                    onPressed: _showToolPicker,
+                    icon: const Icon(Icons.auto_awesome),
+                    label: const Text('Use in AI Tools'),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(48),
                       backgroundColor: kSaffron,
