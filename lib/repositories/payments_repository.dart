@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../api/api_error.dart';
 import '../api/dio_client.dart';
 import '../controllers/auth_controller.dart';
 import '../core/token_storage.dart';
@@ -22,11 +23,24 @@ class PaymentsRepository {
   /// Returns a PaymentOrder whose key_id must be used to initialise Razorpay.
   Future<PaymentOrder> createOrder(int amountPaise) async {
     try {
-      final response = await _dio.post<Map<String, dynamic>>(
+      final response = await _dio.post<dynamic>(
         '/payments/create-order',
         data: {'amount_paise': amountPaise},
+        options: Options(
+          // Shorter timeout for payment creation — user is actively waiting.
+          receiveTimeout: const Duration(seconds: 12),
+          sendTimeout: const Duration(seconds: 8),
+        ),
       );
-      return PaymentOrder.fromJson(response.data!);
+      final body = response.data;
+      if (body is! Map<String, dynamic>) {
+        throw ServerError(
+          statusCode: response.statusCode ?? 0,
+          message: 'Unexpected response from server (${body.runtimeType}). '
+              'Please try again.',
+        );
+      }
+      return PaymentOrder.fromJson(body);
     } on DioException catch (e) {
       throw DioClient.handleDioError(e);
     }
