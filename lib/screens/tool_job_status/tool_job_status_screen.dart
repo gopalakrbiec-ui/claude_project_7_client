@@ -102,6 +102,17 @@ class _ToolJobStatusScreenState extends ConsumerState<ToolJobStatusScreen> {
     );
   }
 
+  static bool _isVideoResult(String toolName, String? url) {
+    final n = toolName.toLowerCase();
+    if (n.contains('animate') || n.contains('kling') || n.contains('veo') ||
+        n.contains('seedance') || n.contains('wan') || n.contains('video')) {
+      return true;
+    }
+    if (url == null) return false;
+    final u = url.toLowerCase().split('?').first; // strip query params
+    return u.endsWith('.mp4') || u.endsWith('.mov') || u.endsWith('.webm');
+  }
+
   Widget _buildBody(BuildContext context, ToolJobState state) {
     switch (state.phase) {
       case ToolJobPhase.polling:
@@ -113,11 +124,10 @@ class _ToolJobStatusScreenState extends ConsumerState<ToolJobStatusScreen> {
         );
 
       case ToolJobPhase.done:
-        final isVideo = state.resultUrl != null &&
-            (state.resultUrl!.endsWith('.mp4') ||
-                state.resultUrl!.contains('.mp4?'));
+        final isVideo = _isVideoResult(widget.toolName, state.resultUrl);
         return _DoneBody(
           resultUrl: state.resultUrl,
+          isVideo: isVideo,
           costDisplay: state.costPaise > 0 ? state.costDisplay : widget.costDisplay,
           isDownloading: _isDownloading,
           onShare: () => _share(state.resultUrl),
@@ -536,6 +546,7 @@ class _DoneBody extends StatelessWidget {
   const _DoneBody({
     super.key,
     required this.resultUrl,
+    required this.isVideo,
     required this.costDisplay,
     required this.isDownloading,
     required this.onShare,
@@ -544,15 +555,14 @@ class _DoneBody extends StatelessWidget {
   });
 
   final String? resultUrl;
+  final bool isVideo;
   final String? costDisplay;
   final bool isDownloading;
   final VoidCallback onShare;
   final VoidCallback onSave;
   final VoidCallback? onAnimate;
 
-  bool get _isVideo =>
-      resultUrl != null &&
-      (resultUrl!.endsWith('.mp4') || resultUrl!.contains('.mp4?'));
+  bool get _isVideo => isVideo;
 
   @override
   Widget build(BuildContext context) {
@@ -672,40 +682,76 @@ class _VideoPlayer extends StatefulWidget {
 }
 
 class _VideoPlayerState extends State<_VideoPlayer> {
-  late final VideoPlayerController _ctrl;
+  VideoPlayerController? _ctrl;
   bool _initialized = false;
+  bool _hasError = false;
 
   @override
   void initState() {
     super.initState();
-    _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+    _initPlayer();
+  }
+
+  Future<void> _initPlayer() async {
+    final ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
       ..setLooping(true)
-      ..setVolume(0)
-      ..initialize().then((_) {
-        if (mounted) {
-          setState(() => _initialized = true);
-          _ctrl.play();
-        }
-      });
+      ..setVolume(0);
+    final prev = _ctrl;
+    _ctrl = ctrl;
+    await prev?.dispose();
+    try {
+      await ctrl.initialize();
+      if (mounted && ctrl == _ctrl) {
+        setState(() => _initialized = true);
+        ctrl.play();
+      }
+    } catch (_) {
+      if (mounted && ctrl == _ctrl) setState(() => _hasError = true);
+    }
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _ctrl?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_hasError) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.videocam_off_outlined, size: 64, color: Colors.white54),
+            const SizedBox(height: 16),
+            const Text(
+              'Could not play video',
+              style: TextStyle(color: Colors.white70, fontSize: 15),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () {
+                setState(() { _hasError = false; _initialized = false; });
+                _initPlayer();
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
     if (!_initialized) {
       return const Center(child: CircularProgressIndicator());
     }
+    final ctrl = _ctrl!;
     return GestureDetector(
       onTap: () {
-        if (_ctrl.value.isPlaying) {
-          _ctrl.pause();
+        if (ctrl.value.isPlaying) {
+          ctrl.pause();
         } else {
-          _ctrl.play();
+          ctrl.play();
         }
         setState(() {});
       },
@@ -716,15 +762,15 @@ class _VideoPlayerState extends State<_VideoPlayer> {
             child: FittedBox(
               fit: BoxFit.cover,
               child: SizedBox(
-                width: _ctrl.value.size.width,
-                height: _ctrl.value.size.height,
-                child: VideoPlayer(_ctrl),
+                width: ctrl.value.size.width,
+                height: ctrl.value.size.height,
+                child: VideoPlayer(ctrl),
               ),
             ),
           ),
-          if (!_ctrl.value.isPlaying)
+          if (!ctrl.value.isPlaying)
             Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.black45,
                 shape: BoxShape.circle,
               ),
