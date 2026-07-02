@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../api/api_error.dart';
 import '../../controllers/background_tool_jobs_controller.dart';
+import '../../controllers/credits_controller.dart';
 import '../../controllers/tool_job_controller.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
@@ -749,6 +750,9 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
           );
 
       if (!mounted) return;
+
+      // Refresh balance — backend deducts credits on order submission.
+      ref.invalidate(creditsControllerProvider);
 
       // Start background polling and register with the badge tracker.
       ref.read(toolJobControllerProvider(job.jobId));
