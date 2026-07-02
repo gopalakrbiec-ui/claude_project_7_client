@@ -18,6 +18,7 @@ import '../../models/order_summary.dart';
 import '../../models/template.dart';
 import '../../repositories/orders_repository.dart';
 import '../../repositories/tools_repository.dart';
+import '../../screens/inspire/inspire_screen.dart';
 import '../../screens/photo_merge/photo_merge_screen.dart';
 import '../../screens/tools/tools_screen.dart'
     show toolsListProvider, ToolWorkScreen;
@@ -62,11 +63,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _showInspireSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const _InspireSheet(),
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const InspireScreen()),
     );
   }
 
@@ -532,114 +530,6 @@ class _CategorySkeleton extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Inspire bottom sheet — coming soon
-// ---------------------------------------------------------------------------
-class _InspireSheet extends StatelessWidget {
-  const _InspireSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-          24, 16, 24, 24 + MediaQuery.viewPaddingOf(context).bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.outlineVariant,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [kSaffron, kMagenta],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(Icons.auto_fix_high, color: Colors.white, size: 42),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Inspire',
-            style: theme.textTheme.headlineSmall
-                ?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: kSaffron.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              'Coming Soon',
-              style: TextStyle(
-                  color: kSaffron,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Search for live photos and videos by keyword or voice, and turn them into stunning AI creations instantly.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: theme.colorScheme.outlineVariant),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.search, color: theme.colorScheme.onSurfaceVariant),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Search for inspiration…',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                ),
-                Icon(Icons.mic_outlined,
-                    color: theme.colorScheme.onSurfaceVariant),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Notify Me When Ready'),
-            ),
-          ),
-        ],
       ),
     );
   }
