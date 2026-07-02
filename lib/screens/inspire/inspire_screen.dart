@@ -153,23 +153,24 @@ class _InspireScreenState extends ConsumerState<InspireScreen> {
           ),
         ),
       ),
-      body: CustomScrollView(
-        controller: _scrollCtrl,
-        slivers: [
-          // Keyword chips
-          SliverToBoxAdapter(
-            child: keywordsAsync.when(
-              loading: () => const SizedBox(height: 48,
-                  child: Center(child: LinearProgressIndicator())),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (chips) => _ChipRow(
-                chips: chips,
-                selected: _query,
-                onTap: _onChipTap,
-              ),
+      body: Column(
+        children: [
+          // Sticky keyword chips — stays fixed while content scrolls
+          keywordsAsync.when(
+            loading: () => const SizedBox(
+                height: 48,
+                child: Center(child: LinearProgressIndicator())),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (chips) => _ChipRow(
+              chips: chips,
+              selected: _query,
+              onTap: _onChipTap,
             ),
           ),
-
+          Expanded(
+            child: CustomScrollView(
+              controller: _scrollCtrl,
+              slivers: [
           // Error state
           if (_error != null && _photos.isEmpty)
             SliverFillRemaining(
@@ -261,6 +262,9 @@ class _InspireScreenState extends ConsumerState<InspireScreen> {
                   ),
                 ],
               ),
+            ),
+          ),
+              ],
             ),
           ),
         ],
@@ -592,12 +596,12 @@ class _PreviewSheetState extends ConsumerState<_PreviewSheet> {
     );
 
     if (selectedTool == null || !mounted) return;
-    Navigator.of(context).pop(); // close preview sheet
 
-    await Future.delayed(const Duration(milliseconds: 100));
-    if (!mounted) return;
-
-    Navigator.of(context).push(MaterialPageRoute(
+    // Capture navigator BEFORE popping — after pop the widget is disposed
+    // so context is no longer valid for navigation.
+    final nav = Navigator.of(context);
+    nav.pop(); // close preview sheet
+    nav.push(MaterialPageRoute(
       builder: (_) => ToolWorkScreen(
         tool: selectedTool,
         preloadedSourceUrl: widget.photo.fullUrl,

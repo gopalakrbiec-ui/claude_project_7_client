@@ -762,10 +762,11 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
   double _wheelRotation = 0.0;
   Animation<double>? _snapAnim;
 
-  // Angle-based pan tracking
+  // Angle-based pan tracking with momentum
   Offset? _lastPanPos;
   double _cx = 0;
   double _cy = 0;
+  double _lastAngularVelocity = 0;
 
   @override
   void initState() {
@@ -801,6 +802,7 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
   void _onPanStart(DragStartDetails d) {
     if (_snapCtrl.isAnimating) _snapCtrl.stop();
     _lastPanPos = d.localPosition;
+    _lastAngularVelocity = 0;
   }
 
   void _onPanUpdate(DragUpdateDetails d) {
@@ -817,21 +819,28 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
 
     setState(() => _wheelRotation += delta);
     _lastPanPos = curr;
+    _lastAngularVelocity = delta; // per-frame angular delta ≈ velocity
   }
 
   void _onPanEnd(DragEndDetails d, int n) {
     _lastPanPos = null;
-    _snapToNearest(n);
+    if (n == 0) return;
+    // If the user was flicking fast, carry momentum forward then snap.
+    // Multiply by ~10 frames to give the wheel a natural coast feeling.
+    final coastRotation = _wheelRotation + _lastAngularVelocity * 10;
+    _lastAngularVelocity = 0;
+    _snapToNearest(n, fromRotation: coastRotation);
   }
 
-  void _snapToNearest(int n) {
+  void _snapToNearest(int n, {double? fromRotation}) {
     if (n == 0) return;
+    final base = fromRotation ?? _wheelRotation;
     final spacing = 2 * math.pi / n;
-    double offset = _wheelRotation % spacing;
+    double offset = base % spacing;
     if (offset < 0) offset += spacing;
     final snapTo = offset <= spacing / 2
-        ? _wheelRotation - offset
-        : _wheelRotation - offset + spacing;
+        ? base - offset
+        : base - offset + spacing;
     _snapAnim = Tween<double>(begin: _wheelRotation, end: snapTo).animate(
         CurvedAnimation(parent: _snapCtrl, curve: Curves.easeOutCubic));
     _snapCtrl.forward(from: 0);
