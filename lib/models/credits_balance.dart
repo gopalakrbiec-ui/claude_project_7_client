@@ -17,6 +17,16 @@ class CreditsBalance {
 
   factory CreditsBalance.fromJson(Map<String, dynamic> json) => CreditsBalance(
         balancePaise: json['balance_paise'] as int,
-        balanceRupees: (json['balance_rupees'] as String).replaceFirst(r'$', '₹'),
+        balanceRupees: _toRupees(json['balance_rupees']),
       );
+
+  /// Normalises any server-returned currency string to ₹ prefix.
+  /// Handles: "₹12.50", "$12.50", "12.50", "Rs.12.50", etc.
+  static String _toRupees(dynamic raw) {
+    final s = (raw?.toString() ?? '0').trim();
+    if (s.startsWith('₹')) return s;
+    // Strip any leading non-digit characters (currency symbols, "Rs.", etc.)
+    final digits = s.replaceFirst(RegExp(r'^[^\d]+'), '');
+    return '₹$digits';
+  }
 }

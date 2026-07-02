@@ -229,13 +229,20 @@ class _HomeAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
     String displayName = '';
     if (authState is AuthAuthenticated) {
-      final storedName = storage.name;
       final firstName = storage.firstName;
-      displayName = storedName ??
-          authState.profile.name ??
-          (firstName != null && firstName.isNotEmpty
-              ? firstName
-              : authState.profile.phone);
+      final storedName = storage.name;
+      final profileName = authState.profile.name;
+
+      // Prefer first name from profile screen, then any non-email name, then phone
+      bool _isEmail(String? s) => s != null && s.contains('@');
+
+      displayName = (firstName != null && firstName.isNotEmpty)
+          ? firstName
+          : (!_isEmail(storedName) && storedName != null && storedName.isNotEmpty)
+              ? storedName
+              : (!_isEmail(profileName) && profileName != null && profileName.isNotEmpty)
+                  ? profileName
+                  : authState.profile.phone;
     }
 
     return AppBar(

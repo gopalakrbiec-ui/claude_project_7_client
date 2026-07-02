@@ -189,7 +189,8 @@ class BackgroundToolJobsController
           costDisplay: jobState.costDisplay,
         );
       } else if (jobState.phase == ToolJobPhase.failed ||
-          jobState.phase == ToolJobPhase.timeout) {
+          jobState.phase == ToolJobPhase.timeout ||
+          jobState.phase == ToolJobPhase.networkError) {
         _updateJob(jobId, status: ToolJobStatus.failed);
       }
     });
