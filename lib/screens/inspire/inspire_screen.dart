@@ -6,8 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gal/gal.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/constants.dart';
 import '../../core/theme.dart';
@@ -35,7 +33,6 @@ class InspireScreen extends ConsumerStatefulWidget {
 class _InspireScreenState extends ConsumerState<InspireScreen> {
   final _searchCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
-  final _speech = stt.SpeechToText();
   Timer? _debounce;
 
   String _query = '';
@@ -44,20 +41,12 @@ class _InspireScreenState extends ConsumerState<InspireScreen> {
   bool _loading = false;
   bool _hasMore = true;
   String? _error;
-  bool _listening = false;
-  bool _speechAvailable = false;
 
   @override
   void initState() {
     super.initState();
     _scrollCtrl.addListener(_onScroll);
     _fetch(reset: true);
-    _initSpeech();
-  }
-
-  Future<void> _initSpeech() async {
-    final available = await _speech.initialize();
-    if (mounted) setState(() => _speechAvailable = available);
   }
 
   @override
@@ -65,57 +54,12 @@ class _InspireScreenState extends ConsumerState<InspireScreen> {
     _debounce?.cancel();
     _searchCtrl.dispose();
     _scrollCtrl.dispose();
-    _speech.stop();
     super.dispose();
   }
 
-  Future<void> _onMicTap() async {
-    if (_listening) {
-      await _speech.stop();
-      setState(() => _listening = false);
-      return;
-    }
-
-    final status = await Permission.microphone.request();
-    if (!status.isGranted) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Microphone permission is required for voice search')),
-        );
-      }
-      return;
-    }
-
-    if (!_speechAvailable) {
-      // Try initialising again in case it failed first time
-      final ok = await _speech.initialize();
-      if (!ok) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Speech recognition not available on this device')),
-          );
-        }
-        return;
-      }
-      setState(() => _speechAvailable = true);
-    }
-
-    setState(() => _listening = true);
-    await _speech.listen(
-      onResult: (result) {
-        final words = result.recognizedWords;
-        _searchCtrl.text = words;
-        if (result.finalResult) {
-          setState(() => _listening = false);
-          if (words != _query) {
-            _query = words;
-            _fetch(reset: true);
-          }
-        }
-      },
-      listenFor: const Duration(seconds: 10),
-      pauseFor: const Duration(seconds: 3),
-      cancelOnError: true,
+  void _onMicTap() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Voice search coming soon')),
     );
   }
 
@@ -204,14 +148,7 @@ class _InspireScreenState extends ConsumerState<InspireScreen> {
                         },
                       )
                     : IconButton(
-                        icon: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: _listening
-                              ? const Icon(Icons.mic, key: ValueKey('active'),
-                                  color: Colors.red)
-                              : const Icon(Icons.mic_outlined,
-                                  key: ValueKey('idle')),
-                        ),
+                        icon: const Icon(Icons.mic_outlined),
                         onPressed: _onMicTap,
                       ),
                 border: OutlineInputBorder(

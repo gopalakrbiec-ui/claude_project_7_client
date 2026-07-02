@@ -56,8 +56,7 @@ dependencies:
   # Video playback (Animate Photo results)
   video_player: ^2.9.1
 
-  # Voice search in Inspire
-  speech_to_text: ^6.6.2
+  # Voice search in Inspire (permission only — STT handled via platform intent)
   permission_handler: ^11.3.1
 
 
