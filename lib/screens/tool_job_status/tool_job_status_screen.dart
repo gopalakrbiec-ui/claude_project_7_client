@@ -33,6 +33,17 @@ const _kMessages = [
   'Your creation is taking shape…',
 ];
 
+const _kMergeMessages = [
+  'Merging your photos…',
+  'Blending faces and scenes…',
+  'AI is weaving your photos together…',
+  'Combining details from all photos…',
+  'Almost there — final touches…',
+  'Creating your merged photo…',
+  'Crafting something special…',
+  'Polishing the final merge…',
+];
+
 // ---------------------------------------------------------------------------
 // Screen entry point
 // ---------------------------------------------------------------------------
@@ -94,7 +105,12 @@ class _ToolJobStatusScreenState extends ConsumerState<ToolJobStatusScreen> {
   Widget _buildBody(BuildContext context, ToolJobState state) {
     switch (state.phase) {
       case ToolJobPhase.polling:
-        return _PollingBody(key: const ValueKey('polling'));
+        final isPhotoMerge = widget.toolName.toLowerCase().contains('photo merge') ||
+            widget.toolName.toLowerCase().contains('photo-merge');
+        return _PollingBody(
+          key: const ValueKey('polling'),
+          messages: isPhotoMerge ? _kMergeMessages : _kMessages,
+        );
 
       case ToolJobPhase.done:
         final isVideo = state.resultUrl != null &&
@@ -244,7 +260,8 @@ class _ToolJobStatusScreenState extends ConsumerState<ToolJobStatusScreen> {
 // Polling body — animated gradient spinner matching order_status_screen
 // ---------------------------------------------------------------------------
 class _PollingBody extends StatefulWidget {
-  const _PollingBody({super.key});
+  const _PollingBody({super.key, this.messages = _kMessages});
+  final List<String> messages;
 
   @override
   State<_PollingBody> createState() => _PollingBodyState();
@@ -271,7 +288,7 @@ class _PollingBodyState extends State<_PollingBody>
       ..repeat();
     _msgCtrl.addStatusListener((s) {
       if (s == AnimationStatus.completed && mounted) {
-        setState(() => _msgIdx = (_msgIdx + 1) % _kMessages.length);
+        setState(() => _msgIdx = (_msgIdx + 1) % widget.messages.length);
       }
     });
   }
@@ -326,7 +343,7 @@ class _PollingBodyState extends State<_PollingBody>
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Text(
-                      _kMessages[_msgIdx],
+                      widget.messages[_msgIdx],
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,

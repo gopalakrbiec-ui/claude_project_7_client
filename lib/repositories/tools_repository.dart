@@ -28,6 +28,7 @@ class AiToolDef {
     required this.needsPhoto,
     required this.needsPrompt,
     required this.needsTargetPhoto,
+    this.keywords = const [],
   });
 
   final String id;
@@ -38,6 +39,7 @@ class AiToolDef {
   final bool needsPhoto;
   final bool needsPrompt;
   final bool needsTargetPhoto;
+  final List<String> keywords;
 
   factory AiToolDef.fromJson(Map<String, dynamic> json) => AiToolDef(
         id: json['id']?.toString() ?? '',
@@ -49,6 +51,10 @@ class AiToolDef {
         needsPhoto: json['needs_photo'] as bool? ?? true,
         needsPrompt: json['needs_prompt'] as bool? ?? false,
         needsTargetPhoto: json['needs_target_photo'] as bool? ?? false,
+        keywords: (json['keywords'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
       );
 
   static String _formatPaise(int paise) {
@@ -162,6 +168,28 @@ class ToolsRepository {
 
       final response = await _dio.post<Map<String, dynamic>>(
         '/tools/$toolId',
+        data: body,
+      );
+      return ToolJobResponse.fromJson(response.data!);
+    } on DioException catch (e) {
+      throw DioClient.handleDioError(e);
+    }
+  }
+
+  /// Submit a Photo Merge job with multiple photos.
+  Future<ToolJobResponse> runPhotoMerge({
+    required List<String> photoKeys,
+    List<String> keywords = const [],
+    String prompt = '',
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'photo_keys': photoKeys,
+        if (keywords.isNotEmpty) 'keywords': keywords,
+        if (prompt.isNotEmpty) 'prompt': prompt,
+      };
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/tools/photo-merge',
         data: body,
       );
       return ToolJobResponse.fromJson(response.data!);

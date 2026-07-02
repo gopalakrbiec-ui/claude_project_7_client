@@ -18,6 +18,7 @@ import '../../models/order_summary.dart';
 import '../../models/template.dart';
 import '../../repositories/orders_repository.dart';
 import '../../repositories/tools_repository.dart';
+import '../../screens/photo_merge/photo_merge_screen.dart';
 import '../../screens/tools/tools_screen.dart'
     show toolsListProvider, ToolWorkScreen;
 import '../../widgets/balance_chip.dart';
@@ -155,9 +156,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             onClose: _closeToolsMenu,
             onToolTap: (tool) {
               _closeToolsMenu();
+              final isPhotoMerge = tool.id == 'photo-merge' ||
+                  tool.name.toLowerCase().contains('photo merge') ||
+                  tool.name.toLowerCase().contains('photo-merge');
               Navigator.of(context).push(
                 MaterialPageRoute(
-                    builder: (_) => ToolWorkScreen(tool: tool)),
+                  builder: (_) => isPhotoMerge
+                      ? PhotoMergeScreen(tool: tool)
+                      : ToolWorkScreen(tool: tool),
+                ),
               );
             },
           ),
@@ -1078,6 +1085,7 @@ class _GlamArcItems extends StatelessWidget {
 
   static List<Color> _colorsFor(String id) {
     final n = id.toLowerCase();
+    if (n.contains('photo merge') || n.contains('photo-merge')) return [const Color(0xFFE65100), const Color(0xFFFFB74D)];
     if (n.contains('filter')) return [const Color(0xFF7B1FA2), const Color(0xFFCE93D8)];
     if (n.contains('background')) return [const Color(0xFF00695C), const Color(0xFF4DB6AC)];
     if (n.contains('outfit')) return [const Color(0xFF880E4F), const Color(0xFFF06292)];
@@ -1095,6 +1103,7 @@ class _GlamArcItems extends StatelessWidget {
 
   static IconData _iconFor(String id) {
     final n = id.toLowerCase();
+    if (n.contains('photo merge') || n.contains('photo-merge')) return Icons.merge_type_rounded;
     if (n.contains('filter')) return Icons.auto_fix_high;
     if (n.contains('outfit')) return Icons.checkroom_outlined;
     if (n.contains('animate')) return Icons.play_circle_outline_rounded;
