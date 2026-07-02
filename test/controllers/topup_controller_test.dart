@@ -86,6 +86,13 @@ void main() {
     creditsRepo = MockCreditsRepository();
 
     registerFallbackValue(0);
+
+    // Default stub: verifyPayment succeeds silently in all tests.
+    when(() => paymentsRepo.verifyPayment(
+          razorpayPaymentId: any(named: 'razorpayPaymentId'),
+          razorpayOrderId: any(named: 'razorpayOrderId'),
+          razorpaySignature: any(named: 'razorpaySignature'),
+        )).thenAnswer((_) async {});
   });
 
   // ---- initTopup ----------------------------------------------------------
@@ -195,7 +202,7 @@ void main() {
       final c = _makeContainer(
           paymentsRepo: paymentsRepo, creditsRepo: creditsRepo);
       await c.read(topupControllerProvider.notifier).initTopup(10000);
-      c.read(topupControllerProvider.notifier).onRazorpaySuccess();
+      c.read(topupControllerProvider.notifier).onRazorpaySuccess(paymentId: 'pay_test', orderId: 'order_test', signature: 'sig_test');
 
       // Wait for polling to finish.
       await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -216,7 +223,7 @@ void main() {
           creditsRepo: creditsRepo,
           pollMaxAttempts: 2);
       await c.read(topupControllerProvider.notifier).initTopup(10000);
-      c.read(topupControllerProvider.notifier).onRazorpaySuccess();
+      c.read(topupControllerProvider.notifier).onRazorpaySuccess(paymentId: 'pay_test', orderId: 'order_test', signature: 'sig_test');
 
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
@@ -237,7 +244,7 @@ void main() {
       final c = _makeContainer(
           paymentsRepo: paymentsRepo, creditsRepo: creditsRepo);
       await c.read(topupControllerProvider.notifier).initTopup(10000);
-      c.read(topupControllerProvider.notifier).onRazorpaySuccess();
+      c.read(topupControllerProvider.notifier).onRazorpaySuccess(paymentId: 'pay_test', orderId: 'order_test', signature: 'sig_test');
 
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
@@ -329,7 +336,7 @@ void main() {
           creditsRepo: creditsRepo,
           pollMaxAttempts: 100);
       await c.read(topupControllerProvider.notifier).initTopup(10000);
-      c.read(topupControllerProvider.notifier).onRazorpaySuccess();
+      c.read(topupControllerProvider.notifier).onRazorpaySuccess(paymentId: 'pay_test', orderId: 'order_test', signature: 'sig_test');
 
       // Let one poll tick execute then reset.
       await Future<void>.delayed(const Duration(milliseconds: 5));
