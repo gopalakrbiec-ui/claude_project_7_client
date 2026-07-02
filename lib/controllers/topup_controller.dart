@@ -170,6 +170,12 @@ class TopupController extends Notifier<TopupState> {
         status: TopupStatus.error,
         errorMessage: e.toString(),
       );
+    } catch (e) {
+      // Covers TypeError / CastError from fromJson if backend schema changes.
+      state = state.copyWith(
+        status: TopupStatus.error,
+        errorMessage: 'Could not start payment. Please try again.',
+      );
     }
   }
 
