@@ -45,4 +45,30 @@ class PaymentsRepository {
       throw DioClient.handleDioError(e);
     }
   }
+
+  /// POST /payments/verify
+  /// Called ONLY from onPaymentSuccess — never from error or dismiss callbacks.
+  /// Sends Razorpay's payment proof to the backend so it can credit the account.
+  Future<void> verifyPayment({
+    required String razorpayPaymentId,
+    required String razorpayOrderId,
+    required String razorpaySignature,
+  }) async {
+    try {
+      await _dio.post<dynamic>(
+        '/payments/verify',
+        data: {
+          'razorpay_payment_id': razorpayPaymentId,
+          'razorpay_order_id': razorpayOrderId,
+          'razorpay_signature': razorpaySignature,
+        },
+        options: Options(
+          receiveTimeout: const Duration(seconds: 15),
+          sendTimeout: const Duration(seconds: 8),
+        ),
+      );
+    } on DioException catch (e) {
+      throw DioClient.handleDioError(e);
+    }
+  }
 }

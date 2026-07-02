@@ -51,9 +51,15 @@ class _TopupScreenState extends ConsumerState<TopupScreen> {
 
   // -- Razorpay SDK callbacks (fire on platform thread) ---------------------
 
-  void _onPaymentSuccess(PaymentSuccessResponse _) {
+  void _onPaymentSuccess(PaymentSuccessResponse response) {
     _checkoutOpen = false;
-    ref.read(topupControllerProvider.notifier).onRazorpaySuccess();
+    // Pass Razorpay's proof to the backend via POST /payments/verify.
+    // Never call verify from error or dismiss callbacks.
+    ref.read(topupControllerProvider.notifier).onRazorpaySuccess(
+          paymentId: response.paymentId ?? '',
+          orderId: response.orderId ?? '',
+          signature: response.signature ?? '',
+        );
   }
 
   void _onPaymentError(PaymentFailureResponse response) {

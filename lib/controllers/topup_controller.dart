@@ -179,13 +179,29 @@ class TopupController extends Notifier<TopupState> {
     }
   }
 
-  // -- Step 2a: Razorpay closed with success (or external wallet) -----------
-  // We do NOT mark success here. We start polling until the server confirms
-  // the credit actually landed via its webhook.
+  // -- Step 2a: Razorpay closed with success ---------------------------------
+  // Call POST /payments/verify first, then poll until balance confirms.
+  // External wallet skips verify (no inline signature) — relies on webhook.
 
-  void onRazorpaySuccess() => _startPolling(state.balanceBefore ?? 0);
+  Future<void> onRazorpaySuccess({
+    required String paymentId,
+    required String orderId,
+    required String signature,
+  }) async {
+    state = state.copyWith(status: TopupStatus.confirming);
+    try {
+      await ref.read(paymentsRepositoryProvider).verifyPayment(
+            razorpayPaymentId: paymentId,
+            razorpayOrderId: orderId,
+            razorpaySignature: signature,
+          );
+    } on ApiError {
+      // Verify failed — backend will still process via webhook, so keep polling.
+    }
+    _startPolling(state.balanceBefore ?? 0);
+  }
 
-  // External wallet (e.g. PhonePe, Paytm) behaves the same — wait for webhook.
+  // External wallet (PhonePe, Paytm) — no inline signature; rely on webhook.
   void onRazorpayExternalWallet() => _startPolling(state.balanceBefore ?? 0);
 
   // -- Step 2b: Razorpay reported failure or cancellation --------------------
