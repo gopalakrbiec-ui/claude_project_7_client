@@ -788,8 +788,12 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   String _msg(ApiError e) => switch (e) {
         NetworkError() =>
           'Could not reach the server. Check your connection and try again.',
-        ServerError(:final statusCode) when statusCode == 422 =>
-          'Please check your photos and try again.',
+        ServerError(:final statusCode, :final message) when statusCode == 422 =>
+          message.isNotEmpty
+              ? message
+              : _cfg.needsPhoto
+                  ? 'Please check your photos and try again.'
+                  : 'Invalid request. Please check your inputs and try again.',
         ServerError(:final message) => message,
         _ => 'Something went wrong. Please try again.',
       };
