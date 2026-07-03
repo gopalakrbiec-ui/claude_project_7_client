@@ -148,12 +148,13 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       thumbnailUrl: 'https://picsum.photos/seed/textimg14/400/400',
     );
   }
-  // Video generation tools
+  // Video generation tools — all require a reference photo + prompt
   if (n.contains('veo')) {
     return const _ToolInputConfig(
-      needsPhoto: false,
+      needsPhoto: true,
       needsTargetPhoto: false,
       needsPrompt: true,
+      photoLabel: 'Reference Photo',
       promptLabel: 'Describe your video',
       promptHint: 'e.g. A bride walking through a garden of marigolds at golden hour…',
       promptFieldName: 'prompt',
@@ -181,8 +182,8 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       needsPhoto: true,
       needsTargetPhoto: false,
       needsPrompt: true,
-      photoLabel: 'Starting Frame Photo',
-      promptLabel: 'Motion description',
+      photoLabel: 'Reference Photo',
+      promptLabel: 'Describe the motion / scene',
       promptHint: 'e.g. Camera slowly pans right, subject smiles and waves…',
       promptFieldName: 'prompt',
       thumbnailUrl: 'https://picsum.photos/seed/kling67/400/400',
@@ -192,9 +193,10 @@ _ToolInputConfig _configFor(AiToolDef tool) {
   }
   if (n.contains('wan') || n.contains('wanx')) {
     return const _ToolInputConfig(
-      needsPhoto: false,
+      needsPhoto: true,
       needsTargetPhoto: false,
       needsPrompt: true,
+      photoLabel: 'Reference Photo',
       promptLabel: 'Describe the video',
       promptHint: 'e.g. Bride in red lehenga walking through rose petals…',
       promptFieldName: 'prompt',
@@ -205,9 +207,10 @@ _ToolInputConfig _configFor(AiToolDef tool) {
   }
   if (n.contains('video') || n.contains('text to video') || n.contains('text-to-video')) {
     return const _ToolInputConfig(
-      needsPhoto: false,
+      needsPhoto: true,
       needsTargetPhoto: false,
       needsPrompt: true,
+      photoLabel: 'Reference Photo',
       promptLabel: 'Describe your video',
       promptHint: 'e.g. Wedding couple dancing under string lights at night…',
       promptFieldName: 'prompt',
