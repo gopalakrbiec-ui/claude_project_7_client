@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "127703972228",
+    "project_id": "savi-nenapu-15365",
+    "storage_bucket": "savi-nenapu-15365.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:127703972228:android:b2d7ef85d484f82f97c5d1",
+        "android_client_info": {
+          "package_name": "in.savinenapu.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaBtNRt16xkUwkRIIyr3QQalYVYrG8DFA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
