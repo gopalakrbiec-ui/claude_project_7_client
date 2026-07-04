@@ -98,9 +98,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset(
-                    'assets/images/logo.png',
-                    height: 120,
+                  Container(
+                    width: 68,
+                    height: 68,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(Icons.auto_awesome,
+                        color: Colors.white, size: 38),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Savi Nenapu',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'ಸವಿ ನೆನಪು · Savi Nenapu',
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 13),
                   ),
                 ],
               ),
