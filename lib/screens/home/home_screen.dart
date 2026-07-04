@@ -785,13 +785,13 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
   void initState() {
     super.initState();
     _bgCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 350))
+        vsync: this, duration: const Duration(milliseconds: 500))
       ..forward();
     _pulseCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1200))
       ..repeat(reverse: true);
     _itemsCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 700))
+        vsync: this, duration: const Duration(milliseconds: 800))
       ..forward();
     _snapCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 320));
@@ -883,10 +883,17 @@ class _RadialToolsMenuState extends State<_RadialToolsMenu>
 
     return AnimatedBuilder(
       animation: _bgCtrl,
-      builder: (_, child) => Opacity(
-        opacity: CurvedAnimation(parent: _bgCtrl, curve: Curves.easeOut).value,
-        child: child,
-      ),
+      builder: (_, child) {
+        final curved = CurvedAnimation(parent: _bgCtrl, curve: Curves.easeOutCubic);
+        return Opacity(
+          opacity: curved.value,
+          child: Transform.scale(
+            scale: 0.85 + 0.15 * curved.value,
+            alignment: Alignment.bottomCenter,
+            child: child,
+          ),
+        );
+      },
       child: GestureDetector(
         onTap: widget.onClose,
         onPanStart: _onPanStart,

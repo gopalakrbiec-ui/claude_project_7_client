@@ -209,15 +209,22 @@ class _PickAmountBody extends ConsumerWidget {
     final theme = Theme.of(context);
     final currentBalancePaise =
         (balanceAsync.valueOrNull?.balancePaise as int?) ?? 0;
-    final currentBalanceDisplay =
-        (balanceAsync.valueOrNull?.balanceRupees as String?) ?? '₹ …';
+    final currentBalanceDisplay = balanceAsync.when(
+      data: (b) => (b.balanceRupees as String?) ?? '₹ 0',
+      loading: () => '₹ …',
+      error: (_, __) => 'Tap to retry',
+    );
     final isLoading = topupState.isLoading;
 
     return ListView(
       padding: const EdgeInsets.all(kSpaceLg),
       children: [
         // Current balance card
-        Container(
+        GestureDetector(
+          onTap: balanceAsync.hasError
+              ? () => ref.refresh(creditsControllerProvider)
+              : null,
+          child: Container(
           padding: const EdgeInsets.all(kSpaceMd),
           decoration: BoxDecoration(
             color: theme.colorScheme.primaryContainer,
@@ -225,8 +232,11 @@ class _PickAmountBody extends ConsumerWidget {
           ),
           child: Row(
             children: [
-              Icon(Icons.account_balance_wallet_outlined,
-                  color: theme.colorScheme.onPrimaryContainer),
+              Icon(
+                balanceAsync.hasError
+                    ? Icons.refresh_rounded
+                    : Icons.account_balance_wallet_outlined,
+                color: theme.colorScheme.onPrimaryContainer),
               const SizedBox(width: kSpaceSm),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,6 +254,7 @@ class _PickAmountBody extends ConsumerWidget {
               ),
             ],
           ),
+        ),
         ),
 
         const SizedBox(height: kSpaceLg),
