@@ -78,3 +78,5 @@ flutter:
   uses-material-design: true
   # Enables flutter gen-l10n via `flutter pub get` (requires l10n.yaml)
   generate: true
+  assets:
+    - assets/images/

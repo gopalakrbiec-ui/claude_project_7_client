@@ -117,29 +117,9 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // App icon-style camera+heart badge
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.18),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(
-                      Icons.auto_awesome,
-                      color: Colors.white,
-                      size: 40,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  const Text(
-                    'Savi Nenapu',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1,
-                    ),
+                  Image.asset(
+                    'assets/images/logo.png',
+                    height: 120,
                   ),
                   const SizedBox(height: 6),
                   Text(
