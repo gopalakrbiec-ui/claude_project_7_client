@@ -1,38 +1,39 @@
-<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- 4-pointed sparkle star, solid white, centred in the safe zone (36–72 range) -->
+  <!-- Heart 1 (back-left) -->
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M38,52
+        C38,44 28,36 22,44
+        C16,52 28,64 38,72
+        C48,64 60,52 54,44
+        C48,36 38,44 38,52Z" />
 
-    <!-- Top arm -->
-    <path
-        android:pathData="M54,22 L57,51 L54,54 L51,51 Z"
-        android:fillColor="#FFFFFF"/>
+  <!-- Heart 2 (front-right) -->
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M70,56
+        C70,48 60,40 54,48
+        C48,56 60,68 70,76
+        C80,68 92,56 86,48
+        C80,40 70,48 70,56Z" />
 
-    <!-- Bottom arm -->
-    <path
-        android:pathData="M54,86 L57,57 L54,54 L51,57 Z"
-        android:fillColor="#FFFFFF"/>
+  <!-- SN text as paths — S -->
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M40,42 C36,42 34,44 34,46 C34,48 36,49 39,50
+        C43,51 46,53 46,56 C46,59 43,61 39,61
+        C36,61 33,60 32,58 L34,57 C35,59 37,60 39,60
+        C42,60 44,58 44,56 C44,54 42,53 39,52
+        C35,51 32,49 32,46 C32,43 35,41 39,41
+        C42,41 44,42 45,44 L43,45 C42,43 41,42 40,42Z" />
 
-    <!-- Left arm -->
-    <path
-        android:pathData="M22,54 L51,57 L54,54 L51,51 Z"
-        android:fillColor="#FFFFFF"/>
-
-    <!-- Right arm -->
-    <path
-        android:pathData="M86,54 L57,57 L54,54 L57,51 Z"
-        android:fillColor="#FFFFFF"/>
-
-    <!-- Small accent sparkle top-right -->
-    <path
-        android:pathData="M76,30 L77.5,38 L79,30 L77.5,22 Z"
-        android:fillColor="#CCFFFFFF"/>
-    <path
-        android:pathData="M70,36 L78,37.5 L86,36 L78,34.5 Z"
-        android:fillColor="#CCFFFFFF"/>
-
+  <!-- N -->
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M49,41 L51,41 L58,58 L58,41 L60,41 L60,61 L58,61 L51,44 L51,61 L49,61Z" />
 </vector>
