@@ -132,9 +132,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const Expanded(child: SizedBox()),
                 Expanded(
                   child: _NavItem(
-                    icon: Icons.auto_fix_high_outlined,
-                    selectedIcon: Icons.auto_fix_high,
-                    label: 'Inspire',
+                    icon: Icons.explore_outlined,
+                    selectedIcon: Icons.explore,
+                    label: 'Discover',
                     selected: false,
                     onTap: () {
                       _closeToolsMenu();

@@ -128,7 +128,7 @@ class _InspireScreenState extends ConsumerState<InspireScreen> {
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
-        title: const Text('Inspire'),
+        title: const Text('Discover'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
           child: Padding(
