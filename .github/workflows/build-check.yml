@@ -50,4 +50,3 @@ jobs:
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           file: build/app/outputs/flutter-apk/app-debug.apk
           releaseNotes: "Branch: ${{ github.ref_name }} | Commit: ${{ github.sha }}"
-          groups: test-1
