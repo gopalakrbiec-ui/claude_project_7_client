@@ -50,24 +50,4 @@ jobs:
           serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           file: build/app/outputs/flutter-apk/app-debug.apk
           releaseNotes: "Branch: ${{ github.ref_name }} | Commit: ${{ github.sha }}"
-
-      - name: Notify on success
-        if: success()
-        continue-on-error: true
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.MAIL_USERNAME }}
-          password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "✅ Savi Nenapu build uploaded — ${{ github.ref_name }}"
-          to: gopal.rms4@gmail.com
-          from: Savi Nenapu CI <${{ secrets.MAIL_USERNAME }}>
-          body: |
-            A new debug APK has been uploaded to Firebase App Distribution.
-
-            Branch:  ${{ github.ref_name }}
-            Commit:  ${{ github.sha }}
-            Run:     https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-            Install the latest build from Firebase App Distribution.
+          groups: test-1
