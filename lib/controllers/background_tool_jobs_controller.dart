@@ -21,6 +21,7 @@ class PersistedToolJob {
     this.resultUrl,
     required this.costDisplay,
     required this.isVideo,
+    this.createdAt,
   });
 
   final String jobId;
@@ -29,6 +30,8 @@ class PersistedToolJob {
   final String? resultUrl;
   final String costDisplay;
   final bool isVideo;
+  /// Unix timestamp (seconds) when the job was submitted.
+  final int? createdAt;
 
   PersistedToolJob copyWith({
     ToolJobStatus? status,
@@ -42,6 +45,7 @@ class PersistedToolJob {
         resultUrl: resultUrl ?? this.resultUrl,
         costDisplay: costDisplay ?? this.costDisplay,
         isVideo: isVideo,
+        createdAt: createdAt,
       );
 
   Map<String, dynamic> toJson() => {
@@ -51,6 +55,7 @@ class PersistedToolJob {
         'resultUrl': resultUrl,
         'costDisplay': costDisplay,
         'isVideo': isVideo,
+        'createdAt': createdAt,
       };
 
   factory PersistedToolJob.fromJson(Map<String, dynamic> json) =>
@@ -64,6 +69,7 @@ class PersistedToolJob {
         resultUrl: json['resultUrl'] as String?,
         costDisplay: json['costDisplay'] as String? ?? '',
         isVideo: json['isVideo'] as bool? ?? false,
+        createdAt: (json['createdAt'] as num?)?.toInt(),
       );
 }
 
@@ -170,6 +176,7 @@ class BackgroundToolJobsController
       status: ToolJobStatus.active,
       costDisplay: '',
       isVideo: isVideo,
+      createdAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
     );
 
     final updated = [job, ...state.jobs];

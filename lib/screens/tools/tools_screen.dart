@@ -36,25 +36,24 @@ class _ToolInputConfig {
     required this.needsPhoto,
     required this.needsTargetPhoto,
     required this.needsPrompt,
+    this.photoOptional = false,
     this.photoLabel = 'Your Photo',
     this.targetLabel = 'Style / Target Photo',
     this.promptLabel = 'Describe what you want',
     this.promptHint = 'Describe the result you want…',
     this.promptFieldName = 'prompt',
-    // Field name for the source/person photo (default: photo_key).
     this.sourcePhotoFieldName = 'photo_key',
-    // Field name for the target/garment photo.
     this.targetPhotoFieldName = 'target_photo_key',
     this.thumbnailUrl = '',
-    // Whether this tool produces a video result.
     this.isVideo = false,
-    // Whether the UI should show a duration picker (animate-photo).
     this.hasVideoDuration = false,
   });
 
   final bool needsPhoto;
   final bool needsTargetPhoto;
   final bool needsPrompt;
+  // When true, the photo picker is shown but not required to enable Run.
+  final bool photoOptional;
   final String photoLabel;
   final String targetLabel;
   final String promptLabel;
@@ -148,13 +147,16 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       thumbnailUrl: 'https://picsum.photos/seed/textimg14/400/400',
     );
   }
-  // Video generation tools — all require a reference photo + prompt
+  // Video generation tools
+  // Photo is optional: with photo → animates the photo; without → text-to-video.
+  // Backend returns 422 "Provide a photo, a prompt, or both" if neither is given.
   if (n.contains('veo')) {
     return const _ToolInputConfig(
-      needsPhoto: true,
+      needsPhoto: false,
+      photoOptional: true,
       needsTargetPhoto: false,
       needsPrompt: true,
-      photoLabel: 'Reference Photo',
+      photoLabel: 'Optional — add a photo to animate it',
       promptLabel: 'Describe your video',
       promptHint: 'e.g. A bride walking through a garden of marigolds at golden hour…',
       promptFieldName: 'prompt',
@@ -165,10 +167,11 @@ _ToolInputConfig _configFor(AiToolDef tool) {
   }
   if (n.contains('seedance') || n.contains('seed dance')) {
     return const _ToolInputConfig(
-      needsPhoto: true,
+      needsPhoto: false,
+      photoOptional: true,
       needsTargetPhoto: false,
       needsPrompt: true,
-      photoLabel: 'Reference Photo',
+      photoLabel: 'Optional — add a photo to animate it',
       promptLabel: 'Describe the motion / scene',
       promptHint: 'e.g. Person dancing gracefully, slow cinematic zoom…',
       promptFieldName: 'prompt',
@@ -179,10 +182,11 @@ _ToolInputConfig _configFor(AiToolDef tool) {
   }
   if (n.contains('kling')) {
     return const _ToolInputConfig(
-      needsPhoto: true,
+      needsPhoto: false,
+      photoOptional: true,
       needsTargetPhoto: false,
       needsPrompt: true,
-      photoLabel: 'Reference Photo',
+      photoLabel: 'Optional — add a photo to animate it',
       promptLabel: 'Describe the motion / scene',
       promptHint: 'e.g. Camera slowly pans right, subject smiles and waves…',
       promptFieldName: 'prompt',
@@ -193,10 +197,11 @@ _ToolInputConfig _configFor(AiToolDef tool) {
   }
   if (n.contains('wan') || n.contains('wanx')) {
     return const _ToolInputConfig(
-      needsPhoto: true,
+      needsPhoto: false,
+      photoOptional: true,
       needsTargetPhoto: false,
       needsPrompt: true,
-      photoLabel: 'Reference Photo',
+      photoLabel: 'Optional — add a photo to animate it',
       promptLabel: 'Describe the video',
       promptHint: 'e.g. Bride in red lehenga walking through rose petals…',
       promptFieldName: 'prompt',
@@ -207,10 +212,11 @@ _ToolInputConfig _configFor(AiToolDef tool) {
   }
   if (n.contains('video') || n.contains('text to video') || n.contains('text-to-video')) {
     return const _ToolInputConfig(
-      needsPhoto: true,
+      needsPhoto: false,
+      photoOptional: true,
       needsTargetPhoto: false,
       needsPrompt: true,
-      photoLabel: 'Reference Photo',
+      photoLabel: 'Optional — add a photo to animate it',
       promptLabel: 'Describe your video',
       promptHint: 'e.g. Wedding couple dancing under string lights at night…',
       promptFieldName: 'prompt',
@@ -494,7 +500,7 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.preloadedSourceUrl != null && _cfg.needsPhoto) {
+    if (widget.preloadedSourceUrl != null && (_cfg.needsPhoto || _cfg.photoOptional)) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _preloadSourcePhoto());
     }
   }
@@ -538,6 +544,9 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
     if (_cfg.needsPhoto && _sourcePhotoKey == null) return false;
     if (_cfg.needsTargetPhoto && _targetPhotoKey == null) return false;
     if (_cfg.needsPrompt && _promptCtrl.text.trim().isEmpty) return false;
+    // Optional-photo tools: need at least a prompt (already checked above) or a photo.
+    // If needsPrompt is false and photo is optional, require at least a photo.
+    if (_cfg.photoOptional && !_cfg.needsPrompt && _sourcePhotoKey == null) return false;
     return true;
   }
 
@@ -567,7 +576,7 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_cfg.needsPhoto) ...[
+            if (_cfg.needsPhoto || _cfg.photoOptional) ...[
               _SectionLabel(_cfg.photoLabel),
               const SizedBox(height: kSpaceSm),
               _PhotoPicker(
@@ -747,7 +756,7 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
 
       final job = await ref.read(toolsRepositoryProvider).runTool(
             widget.tool.id,
-            photoKey: _cfg.needsPhoto ? _sourcePhotoKey : null,
+            photoKey: (_cfg.needsPhoto || _cfg.photoOptional) ? _sourcePhotoKey : null,
             sourceFieldName: _cfg.sourcePhotoFieldName,
             extraFields: allFields.isEmpty ? null : allFields,
           );

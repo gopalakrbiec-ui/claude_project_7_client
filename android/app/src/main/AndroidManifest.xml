@@ -33,7 +33,7 @@
 
     <application
         android:name="${applicationName}"
-        android:label="Yaadein"
+        android:label="Savi Nenapu"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:enableOnBackInvokedCallback="true"
@@ -54,6 +54,14 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+
+            <!-- Deep link: savinenapu://reset-password?token=TOKEN -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="savinenapu"/>
             </intent-filter>
         </activity>
 

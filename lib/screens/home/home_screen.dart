@@ -281,7 +281,7 @@ class _HomeAppBar extends ConsumerWidget implements PreferredSizeWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'Yaadein',
+                  'Savi Nenapu',
                   style: TextStyle(
                     color: Colors.white54,
                     fontSize: 11,

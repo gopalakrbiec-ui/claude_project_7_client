@@ -125,10 +125,18 @@ class ToolJobController extends FamilyNotifier<ToolJobState, String> {
         delay = kOrderPollInitialDelay;
       } on ServerError catch (e) {
         if (_cancelled) return;
-        state = state.copyWith(
-          phase: ToolJobPhase.networkError,
-          error: e.message,
-        );
+        // 403 means job belongs to another user — stop polling gracefully.
+        if (e.statusCode == 403) {
+          state = state.copyWith(
+            phase: ToolJobPhase.failed,
+            error: 'Job not found for this account.',
+          );
+        } else {
+          state = state.copyWith(
+            phase: ToolJobPhase.networkError,
+            error: e.message,
+          );
+        }
         return;
       } catch (_) {
         // unexpected — keep retrying

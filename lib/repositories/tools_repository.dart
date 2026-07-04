@@ -83,6 +83,7 @@ class ToolJobStatus {
     this.resultUrl,
     this.error,
     required this.costPaise,
+    this.createdAt,
   });
 
   final String jobId;
@@ -90,6 +91,8 @@ class ToolJobStatus {
   final String? resultUrl;
   final String? error;
   final int costPaise;
+  /// Unix timestamp (seconds) when the job was created; null if not provided.
+  final int? createdAt;
 
   bool get isDone => status == 'done';
   bool get isFailed => status == 'failed';
@@ -103,6 +106,7 @@ class ToolJobStatus {
         resultUrl: json['result_url']?.toString(),
         error: json['error']?.toString(),
         costPaise: (json['cost_paise'] as num?)?.toInt() ?? 0,
+        createdAt: (json['created_at'] as num?)?.toInt(),
       );
 }
 
@@ -199,13 +203,16 @@ class ToolsRepository {
   }
 
   /// Poll job status. Returns "processing" | "done" | "failed".
+  /// Throws [ServerError] with statusCode 403 if the job belongs to another user.
   Future<ToolJobStatus> getToolStatus(String jobId) async {
     try {
       final response =
           await _dio.get<Map<String, dynamic>>('/tools/status/$jobId');
       return ToolJobStatus.fromJson(response.data!);
     } on DioException catch (e) {
-      throw DioClient.handleDioError(e);
+      final err = DioClient.handleDioError(e);
+      // Re-throw so callers can distinguish 403 (wrong user) from transient errors.
+      throw err;
     }
   }
 }

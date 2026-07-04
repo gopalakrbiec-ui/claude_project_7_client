@@ -79,19 +79,30 @@ class TopupState {
 }
 
 // ---------------------------------------------------------------------------
-// Preset amounts
-// ---------------------------------------------------------------------------
+// Fallback preset amounts used if GET /payments/packs fails.
 const List<int> kTopupPresetsPaise = [
-  5000,    // ₹50
-  10000,   // ₹100
-  20000,   // ₹200
-  50000,   // ₹500
-  100000,  // ₹1000
+  4900,    // ₹49
+  9900,    // ₹99
+  19900,   // ₹199
+  49900,   // ₹499
+  99900,   // ₹999
 ];
 
 // ---------------------------------------------------------------------------
-// Provider
+// Providers
 // ---------------------------------------------------------------------------
+
+/// Loads top-up pack amounts from GET /payments/packs.
+/// Falls back to [kTopupPresetsPaise] on any error.
+final paymentPacksProvider = FutureProvider.autoDispose<List<int>>((ref) async {
+  try {
+    final packs = await ref.read(paymentsRepositoryProvider).getPaymentPacks();
+    return packs.isNotEmpty ? packs : kTopupPresetsPaise;
+  } catch (_) {
+    return kTopupPresetsPaise;
+  }
+});
+
 final topupControllerProvider =
     NotifierProvider<TopupController, TopupState>(TopupController.new);
 

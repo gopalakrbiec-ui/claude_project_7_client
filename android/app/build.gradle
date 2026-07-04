@@ -15,11 +15,11 @@ if (keyPropertiesFile.exists()) {
 }
 
 android {
-    namespace "in.yaadein.app"
+    namespace "in.savinenapu.app"
     compileSdk 36
 
     defaultConfig {
-        applicationId "in.yaadein.app"
+        applicationId "in.savinenapu.app"
         // API 21 = Android 5.0 (Lollipop) — covers 99 %+ of active Android
         // devices globally and is required by flutter_secure_storage.
         minSdk 21
@@ -51,7 +51,7 @@ android {
     buildTypes {
         debug {
             // Debug: no shrinking, fast iteration, debuggable.
-            // No applicationIdSuffix — keeps package name in.yaadein.app
+            // No applicationIdSuffix — keeps package name in.savinenapu.app
             // so it matches the Firebase app registration.
             versionNameSuffix "-debug"
             debuggable true

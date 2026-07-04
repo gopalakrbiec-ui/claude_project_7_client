@@ -100,6 +100,35 @@ class AuthRepository {
     }
   }
 
+  /// POST /auth/forgot-password — sends a reset link; throws [ApiError].
+  /// Returns the server's [detail] message to show to the user.
+  Future<String> forgotPassword(String email) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/auth/forgot-password',
+        data: {'email': email},
+      );
+      return response.data?['detail']?.toString() ??
+          'If this account exists, a reset link has been sent.';
+    } on DioException catch (e) {
+      throw DioClient.handleDioError(e);
+    }
+  }
+
+  /// POST /auth/reset-password — sets a new password via token; throws [ApiError].
+  /// 400 means the token is expired or invalid.
+  Future<void> resetPassword(
+      {required String token, required String newPassword}) async {
+    try {
+      await _dio.post<void>(
+        '/auth/reset-password',
+        data: {'token': token, 'new_password': newPassword},
+      );
+    } on DioException catch (e) {
+      throw DioClient.handleDioError(e);
+    }
+  }
+
   /// GET /auth/me — returns [UserProfile]; throws [ApiError].
   /// Call on every app launch and resume (CLAUDE.md contract rule).
   Future<UserProfile> getMe() async {

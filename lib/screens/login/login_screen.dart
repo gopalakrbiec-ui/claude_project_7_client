@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../api/api_error.dart';
 import '../../controllers/auth_controller.dart';
+import '../../repositories/auth_repository.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -29,62 +30,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _showForgotPassword(BuildContext context) {
-    final emailCtrl = TextEditingController();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-            24, 24, 24, MediaQuery.viewInsetsOf(ctx).bottom + 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Reset Password',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            const Text(
-                'Enter your registered email or mobile number. We\'ll send you a password reset link.',
-                style: TextStyle(fontSize: 14, color: Colors.black54)),
-            const SizedBox(height: 20),
-            TextField(
-              controller: emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: 'Email or Mobile Number',
-                prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
-                filled: true,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'If this account exists, a reset link has been sent.'),
-                    duration: Duration(seconds: 4),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF6B23),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-              ),
-              child: const Text('Send Reset Link',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
-          ],
-        ),
+      builder: (ctx) => _ForgotPasswordSheet(
+        repo: ref.read(authRepositoryProvider),
+        onSent: (msg) {
+          Navigator.pop(ctx);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(msg), duration: const Duration(seconds: 5)),
+          );
+        },
       ),
     );
   }
@@ -152,7 +110,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Yaadein',
+                    'Savi Nenapu',
                     style: TextStyle(
                         color: Colors.white,
                         fontSize: 30,
@@ -161,7 +119,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Memories made beautiful',
+                    'ಸವಿ ನೆನಪು · Savi Nenapu',
                     style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.85),
                         fontSize: 13),
@@ -330,6 +288,114 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           borderRadius: BorderRadius.circular(14),
           borderSide:
               BorderSide(color: theme.colorScheme.error, width: 2)),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Forgot-password bottom sheet — calls POST /auth/forgot-password
+// ---------------------------------------------------------------------------
+class _ForgotPasswordSheet extends StatefulWidget {
+  const _ForgotPasswordSheet({required this.repo, required this.onSent});
+  final AuthRepository repo;
+  final void Function(String message) onSent;
+
+  @override
+  State<_ForgotPasswordSheet> createState() => _ForgotPasswordSheetState();
+}
+
+class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
+  final _emailCtrl = TextEditingController();
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    final email = _emailCtrl.text.trim();
+    if (email.isEmpty) {
+      setState(() => _error = 'Please enter your email address.');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final msg = await widget.repo.forgotPassword(email);
+      if (mounted) widget.onSent(msg);
+    } on ApiError catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Something went wrong. Please try again.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          24, 24, 24, MediaQuery.viewInsetsOf(context).bottom + 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Reset Password',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          const Text(
+              'Enter your registered email. We\'ll send you a password reset link.',
+              style: TextStyle(fontSize: 14, color: Colors.black54)),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _emailCtrl,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _send(),
+            decoration: InputDecoration(
+              labelText: 'Email address',
+              prefixIcon: const Icon(Icons.email_outlined, size: 20),
+              filled: true,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none),
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 10),
+            Text(_error!,
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.error, fontSize: 13)),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 50,
+            child: ElevatedButton(
+              onPressed: _loading ? null : _send,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6B23),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.5, color: Colors.white))
+                  : const Text('Send Reset Link',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -192,7 +192,7 @@ class _OrderStatusScreenState extends ConsumerState<OrderStatusScreen> {
       final file = await _downloadFile(url);
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: 'Check out the design I made with Yaadein! 🎉',
+        text: 'Check out the design I made with Savi Nenapu! 🎉',
       );
     } catch (_) {
       if (mounted) {

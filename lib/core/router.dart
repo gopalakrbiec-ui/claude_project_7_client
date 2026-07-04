@@ -9,6 +9,7 @@ import '../screens/login/login_screen.dart';
 import '../screens/login/phone_entry_screen.dart';
 import '../screens/login/otp_entry_screen.dart';
 import '../screens/login/signup_screen.dart';
+import '../screens/login/reset_password_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/template_detail/template_detail_screen.dart';
@@ -40,9 +41,11 @@ class _RouterNotifier extends ChangeNotifier {
     final isAuthenticated = authState is AuthAuthenticated;
     final loc = state.matchedLocation;
 
-    // 1. Not authenticated → login (allow /login/* and /signup and /language-select)
+    // 1. Not authenticated → login (allow /login/* and /signup and /language-select and /reset-password)
     final onLoginFlow = loc == '/login' || loc.startsWith('/login/');
-    if (!isAuthenticated && !onLoginFlow && loc != '/language-select' && loc != '/signup') {
+    final onResetFlow = loc.startsWith('/reset-password');
+    if (!isAuthenticated && !onLoginFlow && !onResetFlow &&
+        loc != '/language-select' && loc != '/signup') {
       return '/login';
     }
 
@@ -71,6 +74,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/login',
     refreshListenable: notifier,
     redirect: notifier.redirect,
+    // Handle savinenapu:// deep links by mapping the path/query through as-is.
+    // GoRouter treats custom-scheme URIs the same as path navigation.
+
     routes: [
       // Splash shown only while AuthInitializing — replaced by redirect ASAP.
       GoRoute(
@@ -80,6 +86,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/language-select',
         builder: (_, __) => const LanguageSelectScreen(),
+      ),
+      // Deep link: savinenapu://reset-password?token=TOKEN
+      GoRoute(
+        path: '/reset-password',
+        builder: (_, state) => ResetPasswordScreen(
+          token: state.uri.queryParameters['token'] ?? '',
+        ),
       ),
       GoRoute(
         path: '/signup',
@@ -243,7 +256,7 @@ class _SplashScreenState extends State<_SplashScreen>
               ),
               const SizedBox(height: 28),
               const Text(
-                'Yaadein',
+                'Savi Nenapu',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 36,
@@ -253,7 +266,7 @@ class _SplashScreenState extends State<_SplashScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                'Your memories, beautifully crafted',
+                'ಸವಿ ನೆನಪು · Sweet memories',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.8),
                   fontSize: 14,

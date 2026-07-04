@@ -50,7 +50,7 @@ class _AppState extends ConsumerState<App> {
     final locale = ref.watch(localeControllerProvider).valueOrNull;
 
     return MaterialApp.router(
-      title: 'Yaadein',
+      title: 'Savi Nenapu',
       theme: buildAppTheme(),
       routerConfig: router,
 

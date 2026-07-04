@@ -394,6 +394,16 @@ class _ProfileOrderCard extends StatelessWidget {
       );
 }
 
+String _formatDate(int unixSeconds) {
+  final dt = DateTime.fromMillisecondsSinceEpoch(unixSeconds * 1000);
+  final now = DateTime.now();
+  final diff = now.difference(dt);
+  if (diff.inDays == 0) return 'Today';
+  if (diff.inDays == 1) return 'Yesterday';
+  if (diff.inDays < 7) return '${diff.inDays}d ago';
+  return '${dt.day}/${dt.month}/${dt.year}';
+}
+
 class _AiCreationCard extends StatelessWidget {
   const _AiCreationCard({required this.job});
   final CompletedToolJob job;
@@ -484,6 +494,14 @@ class _AiCreationCard extends StatelessWidget {
                 fontSize: 11,
               ),
             ),
+            if (job.createdAt != null)
+              Text(
+                _formatDate(job.createdAt!),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                  fontSize: 10,
+                ),
+              ),
           ],
         ),
       ),

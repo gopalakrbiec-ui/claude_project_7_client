@@ -133,7 +133,7 @@ class _PhoneEntryScreenState extends ConsumerState<PhoneEntryScreen> {
                   ),
                   const SizedBox(height: 14),
                   const Text(
-                    'Yaadein',
+                    'Savi Nenapu',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 32,

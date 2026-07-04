@@ -221,7 +221,7 @@ class _ToolJobStatusScreenState extends ConsumerState<ToolJobStatusScreen> {
       final file = await _downloadFile(url);
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: 'Made with Yaadein AI Tools! ✨',
+        text: 'Made with Savi Nenapu AI Tools! ✨',
       );
     } catch (_) {
       if (mounted) {

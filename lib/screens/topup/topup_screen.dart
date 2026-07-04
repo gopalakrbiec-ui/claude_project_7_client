@@ -85,7 +85,7 @@ class _TopupScreenState extends ConsumerState<TopupScreen> {
       'amount': order.amountPaise,
       'currency': order.currency,
       'order_id': order.gatewayOrderId,
-      'name': 'Yaadein',
+      'name': 'Savi Nenapu',
       'description': 'Credit Top-Up',
       'prefill': {
         // Focus on UPI — most rural users pay via UPI.
@@ -251,24 +251,33 @@ class _PickAmountBody extends ConsumerWidget {
             style: theme.textTheme.titleMedium),
         const SizedBox(height: kSpaceMd),
 
-        // Preset amount cards
-        ...kTopupPresetsPaise.map((paise) {
-          final rupees = paise ~/ 100;
-          final afterTopup = currentBalancePaise + paise;
-          final afterRupees = afterTopup ~/ 100;
-          final isSelected = topupState.selectedAmountPaise == paise;
+        // Preset amount cards — loaded from API, fallback to constants
+        Consumer(builder: (context, ref, _) {
+          final packsAsync = ref.watch(paymentPacksProvider);
+          final packs = packsAsync.valueOrNull ?? kTopupPresetsPaise;
 
-          return Padding(
-            padding: const EdgeInsets.only(bottom: kSpaceSm),
-            child: _AmountCard(
-              rupees: rupees,
-              afterRupees: afterRupees,
-              selected: isSelected,
-              disabled: isLoading,
-              onTap: () => ref
-                  .read(topupControllerProvider.notifier)
-                  .initTopup(paise),
-            ),
+          return Column(
+            children: packs.map((paise) {
+              final rupees = (paise / 100).toStringAsFixed(
+                  paise % 100 == 0 ? 0 : 2);
+              final afterTopup = currentBalancePaise + paise;
+              final afterRupees = (afterTopup / 100).toStringAsFixed(
+                  afterTopup % 100 == 0 ? 0 : 2);
+              final isSelected = topupState.selectedAmountPaise == paise;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: kSpaceSm),
+                child: _AmountCard(
+                  rupeesDisplay: rupees,
+                  afterRupeesDisplay: afterRupees,
+                  selected: isSelected,
+                  disabled: isLoading,
+                  onTap: () => ref
+                      .read(topupControllerProvider.notifier)
+                      .initTopup(paise),
+                ),
+              );
+            }).toList(),
           );
         }),
 
@@ -290,15 +299,15 @@ class _PickAmountBody extends ConsumerWidget {
 
 class _AmountCard extends StatelessWidget {
   const _AmountCard({
-    required this.rupees,
-    required this.afterRupees,
+    required this.rupeesDisplay,
+    required this.afterRupeesDisplay,
     required this.selected,
     required this.disabled,
     required this.onTap,
   });
 
-  final int rupees;
-  final int afterRupees;
+  final String rupeesDisplay;
+  final String afterRupeesDisplay;
   final bool selected;
   final bool disabled;
   final VoidCallback onTap;
@@ -330,10 +339,10 @@ class _AmountCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Add ₹$rupees',
+                Text('Add ₹$rupeesDisplay',
                     style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700)),
-                Text('Balance after: ₹$afterRupees',
+                Text('Balance after: ₹$afterRupeesDisplay',
                     style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.outline)),
               ],

@@ -22,7 +22,7 @@ class LanguageSelectScreen extends ConsumerWidget {
               Icon(Icons.auto_awesome, size: 72, color: theme.colorScheme.primary),
               const SizedBox(height: kSpaceMd),
               Text(
-                'Yaadein',
+                'Savi Nenapu',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontSize: 32,

@@ -120,7 +120,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    'Join Yaadein today',
+                    'Join Savi Nenapu today',
                     style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.85),
                         fontSize: 13),

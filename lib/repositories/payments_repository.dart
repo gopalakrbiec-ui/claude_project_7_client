@@ -19,6 +19,37 @@ class PaymentsRepository {
   PaymentsRepository(this._dio);
   final Dio _dio;
 
+  /// GET /payments/packs — available top-up amounts in paise.
+  Future<List<int>> getPaymentPacks() async {
+    try {
+      final response = await _dio.get<dynamic>('/payments/packs');
+      final body = response.data;
+      List<dynamic> raw;
+      if (body is List) {
+        raw = body;
+      } else if (body is Map) {
+        raw = (body['packs'] ?? body['data'] ?? body['amounts'] ?? []) as List;
+      } else {
+        return const [];
+      }
+      return raw
+          .map((e) => _toInt(e is Map
+              ? (e['amount_paise'] ?? e['paise'] ?? e['amount'])
+              : e))
+          .where((v) => v > 0)
+          .toList();
+    } on DioException catch (e) {
+      throw DioClient.handleDioError(e);
+    }
+  }
+
+  static int _toInt(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
+  }
+
   /// POST /payments/create-order
   /// Returns a PaymentOrder whose key_id must be used to initialise Razorpay.
   Future<PaymentOrder> createOrder(int amountPaise) async {
