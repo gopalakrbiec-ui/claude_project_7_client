@@ -14,7 +14,7 @@ import 'package:video_player/video_player.dart';
 import '../../controllers/tool_job_controller.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
-import '../../repositories/tools_repository.dart' show AiToolDef;
+import '../../repositories/tools_repository.dart' show AiToolDef, toolsRepositoryProvider;
 import '../tools/tools_screen.dart' show toolsListProvider, ToolWorkScreen;
 
 // Theme colours
