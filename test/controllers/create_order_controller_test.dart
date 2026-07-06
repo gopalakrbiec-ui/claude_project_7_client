@@ -250,8 +250,8 @@ void main() {
       // Simulate an already-uploaded photo by checking state after clear.
       c.read(createOrderControllerProvider('tpl1').notifier).clearPhoto();
       final state = c.read(createOrderControllerProvider('tpl1'));
-      expect(state.userPhotoFile, isNull);
-      expect(state.userPhotoKey, isNull);
+      expect(state.photoSlots.first.file, isNull);
+      expect(state.photoSlots.first.key, isNull);
     });
   });
 }
