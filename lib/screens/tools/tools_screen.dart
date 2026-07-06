@@ -491,8 +491,8 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   String? _targetPhotoKey;
   bool _uploadingTarget = false;
 
-  // Duration selection for animate-photo: "5" or "10" seconds.
-  String _animateDuration = '5';
+  // Duration selection for animate-photo: must match backend enum '4s','6s','8s'.
+  String _animateDuration = '4s';
 
   bool _processing = false;
   String? _error;
@@ -629,15 +629,21 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
               Row(
                 children: [
                   _DurationChip(
-                    label: '5 seconds',
-                    selected: _animateDuration == '5',
-                    onTap: () => setState(() => _animateDuration = '5'),
+                    label: '4 seconds',
+                    selected: _animateDuration == '4s',
+                    onTap: () => setState(() => _animateDuration = '4s'),
                   ),
                   const SizedBox(width: 12),
                   _DurationChip(
-                    label: '10 seconds',
-                    selected: _animateDuration == '10',
-                    onTap: () => setState(() => _animateDuration = '10'),
+                    label: '6 seconds',
+                    selected: _animateDuration == '6s',
+                    onTap: () => setState(() => _animateDuration = '6s'),
+                  ),
+                  const SizedBox(width: 12),
+                  _DurationChip(
+                    label: '8 seconds',
+                    selected: _animateDuration == '8s',
+                    onTap: () => setState(() => _animateDuration = '8s'),
                   ),
                 ],
               ),
