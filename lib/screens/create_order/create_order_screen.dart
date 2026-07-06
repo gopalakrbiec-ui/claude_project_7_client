@@ -197,17 +197,31 @@ class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
                   _PriceRow(template: _template, canAfford: canAfford),
                   const SizedBox(height: kSpaceLg),
 
-                  // ── Your Photo ──────────────────────────────────────────
+                  // ── Photos (1 mandatory, up to 4) ───────────────────────
                   _SectionLabel(
                     icon: Icons.face_retouching_natural,
-                    label: 'Your Photo',
-                    required: false,
+                    label: 'Your Photo(s)',
+                    required: true,
+                  ),
+                  const SizedBox(height: kSpaceXs),
+                  Text(
+                    state.filledCount == 0
+                        ? 'Add at least 1 photo'
+                        : '${state.filledCount} photo${state.filledCount > 1 ? 's' : ''} selected · up to 4',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: state.filledCount == 0
+                          ? Theme.of(context).colorScheme.error
+                          : Colors.grey.shade600,
+                    ),
                   ),
                   const SizedBox(height: kSpaceSm),
-                  _PhotoPickerCard(
-                    state: state,
-                    onPick: (file) => ctrl.pickAndUploadPhoto(file),
-                    onClear: ctrl.clearPhoto,
+                  _MultiPhotoGrid(
+                    slots: state.photoSlots,
+                    canAddSlot: state.canAddSlot,
+                    onPick: (index, file) => ctrl.pickAndUploadPhoto(index, file),
+                    onRemove: ctrl.removePhoto,
+                    onAddSlot: ctrl.addPhotoSlot,
                   ),
                   const SizedBox(height: kSpaceLg),
 
@@ -289,7 +303,10 @@ class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
                   ],
 
                   // ── Generate button ─────────────────────────────────────
-                  _GenerateButton(state: state, onTap: () => ctrl.submit(_template.id)),
+                  _GenerateButton(
+                    state: state,
+                    onTap: () => ctrl.submit(_template.id),
+                  ),
 
                   if (!canAfford && balanceAsync.hasValue) ...[
                     const SizedBox(height: kSpaceSm),
@@ -385,81 +402,198 @@ class _PriceRow extends StatelessWidget {
   }
 }
 
-class _PhotoPickerCard extends StatelessWidget {
-  const _PhotoPickerCard({
-    required this.state,
+// ---------------------------------------------------------------------------
+// Multi-photo grid — 1 mandatory slot, up to 4
+// ---------------------------------------------------------------------------
+class _MultiPhotoGrid extends StatelessWidget {
+  const _MultiPhotoGrid({
+    required this.slots,
+    required this.canAddSlot,
     required this.onPick,
-    required this.onClear,
+    required this.onRemove,
+    required this.onAddSlot,
   });
-  final CreateOrderState state;
-  final void Function(File) onPick;
-  final VoidCallback onClear;
+
+  final List<PhotoSlot> slots;
+  final bool canAddSlot;
+  final void Function(int index, File file) onPick;
+  final void Function(int index) onRemove;
+  final VoidCallback onAddSlot;
 
   @override
   Widget build(BuildContext context) {
-    final hasPhoto = state.userPhotoFile != null;
+    final slotSize =
+        (MediaQuery.sizeOf(context).width - kSpaceMd * 2 - 10) / 2;
 
-    return Container(
-      height: 200,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: hasPhoto ? kSaffron : const Color(0xFFDDDDDD),
-          width: hasPhoto ? 2 : 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        for (var i = 0; i < slots.length; i++)
+          _PhotoSlotTile(
+            slot: slots[i],
+            index: i,
+            size: slotSize,
+            onPick: (file) => onPick(i, file),
+            onRemove: () => onRemove(i),
           ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: hasPhoto
-          ? _PhotoPreview(state: state, onClear: onClear)
-          : _PhotoPickPrompt(onPick: onPick),
+        if (canAddSlot)
+          _AddSlotTile(size: slotSize, onTap: onAddSlot),
+      ],
     );
   }
 }
 
-class _PhotoPickPrompt extends StatelessWidget {
-  const _PhotoPickPrompt({required this.onPick});
+class _PhotoSlotTile extends StatelessWidget {
+  const _PhotoSlotTile({
+    required this.slot,
+    required this.index,
+    required this.size,
+    required this.onPick,
+    required this.onRemove,
+  });
+
+  final PhotoSlot slot;
+  final int index;
+  final double size;
   final void Function(File) onPick;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    if (slot.file != null) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                slot.file!,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+              ),
+            ),
+            if (slot.uploading)
+              Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                ),
+              )
+            else ...[
+              if (slot.isReady)
+                Positioned(
+                  top: 6,
+                  left: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade700,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.white, size: 11),
+                        SizedBox(width: 3),
+                        Text('Ready',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ),
+              Positioned(
+                top: 6,
+                right: 6,
+                child: GestureDetector(
+                  onTap: onRemove,
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    decoration: const BoxDecoration(
+                        color: Colors.black54, shape: BoxShape.circle),
+                    child:
+                        const Icon(Icons.close, color: Colors.white, size: 16),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 6,
+                left: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Photo ${index + 1}',
+                    style:
+                        const TextStyle(color: Colors.white, fontSize: 10),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    // Empty slot — tap to pick
+    return GestureDetector(
       onTap: () => _showSourceSheet(context),
-      borderRadius: BorderRadius.circular(16),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: kBrandGradient,
-              shape: BoxShape.circle,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: index == 0
+                ? kSaffron.withValues(alpha: 0.8)
+                : const Color(0xFFDDDDDD),
+            width: index == 0 ? 2 : 1.5,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: index == 0 ? kBrandGradient : null,
+                color: index == 0 ? null : Colors.grey.shade200,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.add_a_photo,
+                color: index == 0 ? Colors.white : Colors.grey.shade500,
+                size: 22,
+              ),
             ),
-            child: const Icon(Icons.add_a_photo, color: Colors.white, size: 30),
-          ),
-          const SizedBox(height: kSpaceMd),
-          const Text(
-            'Tap to add your photo',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1A1A1A),
+            const SizedBox(height: 8),
+            Text(
+              index == 0 ? 'Add Photo *' : 'Photo ${index + 1}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: index == 0 ? kSaffron : Colors.grey.shade500,
+              ),
             ),
-          ),
-          const SizedBox(height: kSpaceXs),
-          Text(
-            'Camera or gallery',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -501,87 +635,48 @@ class _PhotoPickPrompt extends StatelessWidget {
         ),
       ),
     );
-    if (source == null) return;
+    if (source == null || !context.mounted) return;
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: source, imageQuality: 90);
     if (picked != null) onPick(File(picked.path));
   }
 }
 
-class _PhotoPreview extends StatelessWidget {
-  const _PhotoPreview({required this.state, required this.onClear});
-  final CreateOrderState state;
-  final VoidCallback onClear;
+class _AddSlotTile extends StatelessWidget {
+  const _AddSlotTile({required this.size, required this.onTap});
+  final double size;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.file(state.userPhotoFile!, fit: BoxFit.cover),
-        // Uploading overlay
-        if (state.isUploadingPhoto)
-          Container(
-            color: Colors.black54,
-            child: const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(color: Colors.white),
-                  SizedBox(height: kSpaceSm),
-                  Text(
-                    'Uploading…',
-                    style: TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-          )
-        else ...[
-          // Uploaded badge
-          if (state.userPhotoKey != null)
-            Positioned(
-              top: kSpaceSm,
-              right: kSpaceSm,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: kSpaceSm, vertical: kSpaceXs),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade700,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.white, size: 14),
-                    SizedBox(width: 4),
-                    Text('Ready',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
-            ),
-          // Remove button
-          Positioned(
-            bottom: kSpaceSm,
-            right: kSpaceSm,
-            child: GestureDetector(
-              onTap: onClear,
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.close, color: Colors.white, size: 18),
-              ),
-            ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: kSaffron.withValues(alpha: 0.4),
+            style: BorderStyle.solid,
           ),
-        ],
-      ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_circle_outline_rounded,
+                size: 32, color: kSaffron.withValues(alpha: 0.7)),
+            const SizedBox(height: 8),
+            Text(
+              'Add Photo',
+              style: TextStyle(
+                  color: kSaffron.withValues(alpha: 0.8),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -663,27 +758,31 @@ class _GenerateButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final busy = state.isBusy;
-    final label = state.isUploadingPhoto
+    final noPhoto = state.filledCount == 0;
+    final showSpinner = state.isBusy;
+    final disabled = noPhoto || state.isBusy;
+    final label = state.isAnyUploading
         ? 'Uploading photo…'
         : state.isSubmitting
             ? 'Generating…'
-            : 'Generate Poster';
+            : noPhoto
+                ? 'Add at least 1 photo'
+                : 'Generate Poster';
 
     return Container(
       height: 56,
       decoration: BoxDecoration(
-        gradient: busy ? null : kBrandGradient,
-        color: busy ? Colors.grey.shade300 : null,
+        gradient: disabled ? null : kBrandGradient,
+        color: disabled ? Colors.grey.shade300 : null,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: busy ? null : onTap,
+          onTap: disabled ? null : onTap,
           borderRadius: BorderRadius.circular(14),
           child: Center(
-            child: busy
+            child: showSpinner
                 ? Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -705,15 +804,17 @@ class _GenerateButton extends StatelessWidget {
                   )
                 : Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.auto_awesome, color: Colors.white, size: 20),
-                      SizedBox(width: kSpaceSm),
+                    children: [
+                      Icon(Icons.auto_awesome,
+                          color: disabled ? Colors.grey.shade600 : Colors.white,
+                          size: 20),
+                      const SizedBox(width: kSpaceSm),
                       Text(
-                        'Generate Poster',
+                        label,
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: disabled ? 15 : 18,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: disabled ? Colors.grey.shade600 : Colors.white,
                         ),
                       ),
                     ],

@@ -21,7 +21,7 @@ class CreateOrderParams {
   const CreateOrderParams({
     required this.templateId,
     required this.idempotencyKey,
-    this.userPhotoKey,
+    this.userPhotoKeys = const [],
     this.userPrompt,
     this.aspectRatio = '9:16',
     this.customerPhone,
@@ -29,7 +29,7 @@ class CreateOrderParams {
 
   final String templateId;
   final String idempotencyKey;
-  final String? userPhotoKey;
+  final List<String> userPhotoKeys;
   final String? userPrompt;
   final String aspectRatio;
   final String? customerPhone;
@@ -68,7 +68,10 @@ class OrdersRepository {
       final response = await _dio.post<Map<String, dynamic>>('/orders', data: {
         'template_id': int.tryParse(params.templateId) ?? params.templateId,
         'idempotency_key': params.idempotencyKey,
-        if (params.userPhotoKey != null) 'user_photo_key': params.userPhotoKey,
+        if (params.userPhotoKeys.length == 1)
+          'user_photo_key': params.userPhotoKeys.first,
+        if (params.userPhotoKeys.length > 1)
+          'user_photo_keys': params.userPhotoKeys,
         if (params.userPrompt != null && params.userPrompt!.isNotEmpty)
           'user_prompt': params.userPrompt,
         'aspect_ratio': params.aspectRatio,

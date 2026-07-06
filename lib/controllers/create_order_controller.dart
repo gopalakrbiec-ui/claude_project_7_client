@@ -12,15 +12,37 @@ import '../repositories/orders_repository.dart';
 final uuidProvider = Provider<Uuid>((_) => const Uuid());
 
 // ---------------------------------------------------------------------------
+// Photo slot — one entry in the multi-photo list
+// ---------------------------------------------------------------------------
+const _kMaxPhotos = 4;
+
+class PhotoSlot {
+  const PhotoSlot({this.file, this.key, this.uploading = false});
+  final File? file;
+  final String? key;
+  final bool uploading;
+
+  bool get isEmpty => file == null;
+  bool get isReady => key != null;
+
+  PhotoSlot copyWith({File? file, String? key, bool? uploading, bool clear = false}) {
+    return PhotoSlot(
+      file: clear ? null : (file ?? this.file),
+      key: clear ? null : (key ?? this.key),
+      uploading: uploading ?? this.uploading,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
-enum CreateOrderStatus { idle, uploadingPhoto, submitting, success, error }
+enum CreateOrderStatus { idle, submitting, success, error }
 
 class CreateOrderState {
   const CreateOrderState({
     required this.idempotencyKey,
-    this.userPhotoFile,
-    this.userPhotoKey,
+    List<PhotoSlot>? photoSlots,
     this.userPrompt = '',
     this.aspectRatio = '1:1',
     this.customerPhone,
@@ -28,13 +50,11 @@ class CreateOrderState {
     this.errorMessage,
     this.createdOrder,
     this.isInsufficientCredits = false,
-  });
+  }) : photoSlots = photoSlots ?? const [PhotoSlot()];
 
   final String idempotencyKey;
-  /// Local file selected from camera/gallery.
-  final File? userPhotoFile;
-  /// Server-side key returned after upload. Sent with createOrder.
-  final String? userPhotoKey;
+  /// 1–4 photo slots; always has at least one entry.
+  final List<PhotoSlot> photoSlots;
   final String userPrompt;
   /// '1:1' | '9:16' | '16:9' | '4:3'
   final String aspectRatio;
@@ -45,17 +65,27 @@ class CreateOrderState {
   final Order? createdOrder;
   final bool isInsufficientCredits;
 
-  bool get isUploadingPhoto => status == CreateOrderStatus.uploadingPhoto;
+  bool get isAnyUploading => photoSlots.any((s) => s.uploading);
   bool get isSubmitting => status == CreateOrderStatus.submitting;
-  bool get isBusy => isUploadingPhoto || isSubmitting;
+  bool get isBusy => isAnyUploading || isSubmitting;
   bool get isSuccess => status == CreateOrderStatus.success;
+
+  int get filledCount => photoSlots.where((s) => !s.isEmpty).length;
+  bool get canAddSlot => photoSlots.length < _kMaxPhotos;
+
+  /// All filled slots have been uploaded (have a key).
+  bool get allPhotosReady =>
+      photoSlots.where((s) => !s.isEmpty).every((s) => s.isReady);
+
+  List<String> get uploadedKeys =>
+      photoSlots.where((s) => s.isReady).map((s) => s.key!).toList();
+
+  // Legacy compat — used by _GenerateButton label
+  bool get isUploadingPhoto => isAnyUploading;
 
   CreateOrderState copyWith({
     String? idempotencyKey,
-    File? userPhotoFile,
-    bool clearPhoto = false,
-    String? userPhotoKey,
-    bool clearPhotoKey = false,
+    List<PhotoSlot>? photoSlots,
     String? userPrompt,
     String? aspectRatio,
     String? customerPhone,
@@ -68,8 +98,7 @@ class CreateOrderState {
   }) {
     return CreateOrderState(
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
-      userPhotoFile: clearPhoto ? null : (userPhotoFile ?? this.userPhotoFile),
-      userPhotoKey: clearPhotoKey ? null : (userPhotoKey ?? this.userPhotoKey),
+      photoSlots: photoSlots ?? this.photoSlots,
       userPrompt: userPrompt ?? this.userPrompt,
       aspectRatio: aspectRatio ?? this.aspectRatio,
       customerPhone:
@@ -115,42 +144,70 @@ class CreateOrderController
 
   // -- Photo handling -------------------------------------------------------
 
-  /// Picks a photo file and immediately uploads it to the server.
-  /// Sets userPhotoFile for local preview; sets userPhotoKey on success.
-  Future<void> pickAndUploadPhoto(File file) async {
-    state = state.copyWith(
-      userPhotoFile: file,
-      clearPhotoKey: true,
-      status: CreateOrderStatus.uploadingPhoto,
-      clearError: true,
-    );
+  List<PhotoSlot> _updateSlot(int index, PhotoSlot updated) {
+    final slots = List<PhotoSlot>.from(state.photoSlots);
+    slots[index] = updated;
+    return slots;
+  }
+
+  /// Upload photo at [index]. Adds a new slot if [index] == slots.length.
+  Future<void> pickAndUploadPhoto(int index, File file) async {
+    final slots = List<PhotoSlot>.from(state.photoSlots);
+    if (index == slots.length && slots.length < _kMaxPhotos) {
+      slots.add(PhotoSlot(file: file, uploading: true));
+    } else {
+      slots[index] = PhotoSlot(file: file, uploading: true);
+    }
+    state = state.copyWith(photoSlots: slots, clearError: true);
+
     try {
-      final key =
-          await ref.read(ordersRepositoryProvider).uploadPhoto(file);
+      final key = await ref.read(ordersRepositoryProvider).uploadPhoto(file);
       state = state.copyWith(
-        userPhotoKey: key,
-        status: CreateOrderStatus.idle,
+        photoSlots: _updateSlot(
+          index < state.photoSlots.length ? index : state.photoSlots.length - 1,
+          PhotoSlot(file: file, key: key),
+        ),
       );
     } on ApiError catch (e) {
       dev.log('[CreateOrder] photo upload error: $e', name: 'order');
-      state = state.copyWith(
-        clearPhoto: true,
-        clearPhotoKey: true,
-        status: CreateOrderStatus.error,
-        errorMessage: 'Photo upload failed. Please try again.',
-      );
+      _clearSlot(index, error: 'Photo upload failed. Please try again.');
     } catch (e) {
-      state = state.copyWith(
-        clearPhoto: true,
-        clearPhotoKey: true,
-        status: CreateOrderStatus.error,
-        errorMessage: 'Photo upload failed: $e',
-      );
+      _clearSlot(index, error: 'Photo upload failed: $e');
     }
   }
 
-  void clearPhoto() =>
-      state = state.copyWith(clearPhoto: true, clearPhotoKey: true, clearError: true);
+  void _clearSlot(int index, {String? error}) {
+    final slots = List<PhotoSlot>.from(state.photoSlots);
+    if (index < slots.length) {
+      slots[index] = const PhotoSlot();
+      // Remove trailing empty slots beyond slot 0
+      while (slots.length > 1 && slots.last.isEmpty) {
+        slots.removeLast();
+      }
+    }
+    state = state.copyWith(
+      photoSlots: slots,
+      status: error != null ? CreateOrderStatus.error : null,
+      errorMessage: error,
+    );
+  }
+
+  void removePhoto(int index) {
+    final slots = List<PhotoSlot>.from(state.photoSlots);
+    slots.removeAt(index);
+    if (slots.isEmpty) slots.add(const PhotoSlot());
+    state = state.copyWith(photoSlots: slots, clearError: true);
+  }
+
+  void addPhotoSlot() {
+    if (!state.canAddSlot) return;
+    final slots = List<PhotoSlot>.from(state.photoSlots)..add(const PhotoSlot());
+    state = state.copyWith(photoSlots: slots);
+  }
+
+  // Legacy single-photo compat — kept so existing callers compile
+  Future<void> pickAndUploadPhoto0(File file) => pickAndUploadPhoto(0, file);
+  void clearPhoto() => _clearSlot(0);
 
   // -- Submit ---------------------------------------------------------------
 
@@ -171,7 +228,7 @@ class CreateOrderController
             CreateOrderParams(
               templateId: templateId,
               idempotencyKey: key,
-              userPhotoKey: state.userPhotoKey,
+              userPhotoKeys: state.uploadedKeys,
               userPrompt: state.userPrompt.trim().isEmpty
                   ? null
                   : state.userPrompt.trim(),
@@ -222,6 +279,9 @@ class CreateOrderController
 
   void startNewOrder() {
     final newKey = ref.read(uuidProvider).v4();
-    state = CreateOrderState(idempotencyKey: newKey);
+    state = CreateOrderState(
+      idempotencyKey: newKey,
+      photoSlots: const [PhotoSlot()],
+    );
   }
 }
