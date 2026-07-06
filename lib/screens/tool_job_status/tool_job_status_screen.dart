@@ -124,14 +124,14 @@ class _ToolJobStatusScreenState extends ConsumerState<ToolJobStatusScreen> {
         );
 
       case ToolJobPhase.done:
-        final isVideo = _isVideoResult(widget.toolName, state.resultUrl);
+        final isVideo = state.isVideo || _isVideoResult(widget.toolName, state.resultUrl);
         return _DoneBody(
           resultUrl: state.resultUrl,
           isVideo: isVideo,
           costDisplay: state.costPaise > 0 ? state.costDisplay : widget.costDisplay,
           isDownloading: _isDownloading,
-          onShare: () => _share(state.resultUrl),
-          onSave: () => _save(state.resultUrl),
+          onShare: () => _share(isVideo),
+          onSave: () => _save(isVideo),
           onAnimate: isVideo ? null : () => _animateThis(state.resultUrl),
           key: const ValueKey('done'),
         );
@@ -200,11 +200,16 @@ class _ToolJobStatusScreenState extends ConsumerState<ToolJobStatusScreen> {
     }
   }
 
-  Future<File> _downloadFile(String? url) async {
-    if (url == null) throw Exception('No result URL');
+  /// Re-fetches a fresh presigned URL from the backend right before sharing.
+  Future<String> _freshUrl() async {
+    final status = await ref.read(toolsRepositoryProvider).getToolStatus(widget.jobId);
+    if (status.resultUrl == null) throw Exception('No result URL');
+    return status.resultUrl!;
+  }
+
+  Future<File> _downloadFile(String url, {required bool isVideo}) async {
+    final ext = isVideo ? 'mp4' : 'png';
     final dir = await getTemporaryDirectory();
-    final isVideo = url.contains('.mp4');
-    final ext = isVideo ? 'mp4' : 'jpg';
     final path = '${dir.path}/tool_${DateTime.now().millisecondsSinceEpoch}.$ext';
     final dio = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 15),
@@ -214,11 +219,12 @@ class _ToolJobStatusScreenState extends ConsumerState<ToolJobStatusScreen> {
     return File(path);
   }
 
-  Future<void> _share(String? url) async {
+  Future<void> _share(bool isVideo) async {
     if (_isDownloading) return;
     setState(() => _isDownloading = true);
     try {
-      final file = await _downloadFile(url);
+      final url = await _freshUrl();
+      final file = await _downloadFile(url, isVideo: isVideo);
       await Share.shareXFiles(
         [XFile(file.path)],
         text: 'Made with Savi Nenapu AI Tools! ✨',
@@ -234,12 +240,12 @@ class _ToolJobStatusScreenState extends ConsumerState<ToolJobStatusScreen> {
     }
   }
 
-  Future<void> _save(String? url) async {
+  Future<void> _save(bool isVideo) async {
     if (_isDownloading) return;
     setState(() => _isDownloading = true);
     try {
-      final file = await _downloadFile(url);
-      final isVideo = url?.contains('.mp4') == true;
+      final url = await _freshUrl();
+      final file = await _downloadFile(url, isVideo: isVideo);
       if (isVideo) {
         await Gal.putVideo(file.path);
       } else {

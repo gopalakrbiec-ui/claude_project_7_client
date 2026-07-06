@@ -84,6 +84,7 @@ class ToolJobStatus {
     this.error,
     required this.costPaise,
     this.createdAt,
+    this.mediaType,
   });
 
   final String jobId;
@@ -93,10 +94,13 @@ class ToolJobStatus {
   final int costPaise;
   /// Unix timestamp (seconds) when the job was created; null if not provided.
   final int? createdAt;
+  /// "image" or "video" — determines file extension when sharing/saving.
+  final String? mediaType;
 
   bool get isDone => status == 'done';
   bool get isFailed => status == 'failed';
   bool get isProcessing => status == 'processing';
+  bool get isVideo => mediaType == 'video';
 
   String get costDisplay => AiToolDef._formatPaise(costPaise);
 
@@ -107,6 +111,7 @@ class ToolJobStatus {
         error: json['error']?.toString(),
         costPaise: (json['cost_paise'] as num?)?.toInt() ?? 0,
         createdAt: (json['created_at'] as num?)?.toInt(),
+        mediaType: json['media_type']?.toString(),
       );
 }
 

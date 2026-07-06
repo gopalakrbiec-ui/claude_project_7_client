@@ -15,6 +15,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../controllers/order_status_controller.dart';
 import '../../core/constants.dart';
 import '../../models/order.dart';
+import '../../repositories/orders_repository.dart';
 import '../../repositories/tools_repository.dart' show AiToolDef;
 import '../tools/tools_screen.dart' show toolsListProvider, ToolWorkScreen;
 
@@ -170,11 +171,12 @@ class _OrderStatusScreenState extends ConsumerState<OrderStatusScreen> {
     }
   }
 
-  Future<File> _downloadFile(String? url) async {
-    if (url == null) throw Exception('No result URL available');
+  /// Fetches a fresh presigned URL then downloads to a temp file.
+  /// Extension is derived from the URL path so videos get .mp4, not .jpg.
+  Future<File> _downloadFile(String url) async {
+    final ext = url.contains('.mp4') ? 'mp4' : 'jpg';
     final dir = await getTemporaryDirectory();
-    final path =
-        '${dir.path}/result_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final path = '${dir.path}/result_${DateTime.now().millisecondsSinceEpoch}.$ext';
     // Use a bounded Dio instance — bare Dio() has no timeout and can hang
     // indefinitely on a flaky rural network.
     final dio = Dio(BaseOptions(
@@ -185,10 +187,16 @@ class _OrderStatusScreenState extends ConsumerState<OrderStatusScreen> {
     return File(path);
   }
 
-  Future<void> _shareOnWhatsApp(String? url) async {
+  /// Re-fetches a fresh presigned URL from the backend right before sharing
+  /// so expired URLs never cause a share failure.
+  Future<String> _freshUrl() =>
+      ref.read(ordersRepositoryProvider).getDownloadUrl(widget.orderId);
+
+  Future<void> _shareOnWhatsApp(String? _) async {
     if (_isDownloading) return;
     setState(() => _isDownloading = true);
     try {
+      final url = await _freshUrl();
       final file = await _downloadFile(url);
       await Share.shareXFiles(
         [XFile(file.path)],
@@ -206,12 +214,18 @@ class _OrderStatusScreenState extends ConsumerState<OrderStatusScreen> {
     }
   }
 
-  Future<void> _saveToPhone(String? url) async {
+  Future<void> _saveToPhone(String? _) async {
     if (_isDownloading) return;
     setState(() => _isDownloading = true);
     try {
+      final url = await _freshUrl();
       final file = await _downloadFile(url);
-      await Gal.putImage(file.path);
+      final isVideo = file.path.endsWith('.mp4');
+      if (isVideo) {
+        await Gal.putVideo(file.path);
+      } else {
+        await Gal.putImage(file.path);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Saved to your photo gallery!')),

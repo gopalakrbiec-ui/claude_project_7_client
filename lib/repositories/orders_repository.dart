@@ -132,6 +132,18 @@ class OrdersRepository {
     }
   }
 
+  /// GET /orders/{id}/download — returns a fresh presigned result_url.
+  /// Always call this right before sharing/saving; presigned URLs expire in ~1h.
+  Future<String> getDownloadUrl(String orderId) async {
+    try {
+      final response =
+          await _dio.get<Map<String, dynamic>>('/orders/$orderId/download');
+      return response.data!['result_url'] as String;
+    } on DioException catch (e) {
+      throw DioClient.handleDioError(e);
+    }
+  }
+
   /// POST /orders/{id}/remove-watermark
   /// Backend debits credits and returns the clean (unwatermarked) URL.
   /// Throws ServerError(402) if the user has insufficient credits.

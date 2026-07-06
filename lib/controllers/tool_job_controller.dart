@@ -12,6 +12,7 @@ class ToolJobState {
   const ToolJobState({
     required this.phase,
     this.resultUrl,
+    this.mediaType,
     this.error,
     this.costPaise = 0,
     this.attemptCount = 0,
@@ -20,10 +21,14 @@ class ToolJobState {
 
   final ToolJobPhase phase;
   final String? resultUrl;
+  /// "image" or "video" — from the backend media_type field.
+  final String? mediaType;
   final String? error;
   final int costPaise;
   final int attemptCount;
   final Duration? currentDelay;
+
+  bool get isVideo => mediaType == 'video';
 
   bool get isTerminal =>
       phase == ToolJobPhase.done ||
@@ -41,6 +46,7 @@ class ToolJobState {
   ToolJobState copyWith({
     ToolJobPhase? phase,
     String? resultUrl,
+    String? mediaType,
     String? error,
     bool clearError = false,
     int? costPaise,
@@ -50,6 +56,7 @@ class ToolJobState {
       ToolJobState(
         phase: phase ?? this.phase,
         resultUrl: resultUrl ?? this.resultUrl,
+        mediaType: mediaType ?? this.mediaType,
         error: clearError ? null : (error ?? this.error),
         costPaise: costPaise ?? this.costPaise,
         attemptCount: attemptCount ?? this.attemptCount,
@@ -105,6 +112,7 @@ class ToolJobController extends FamilyNotifier<ToolJobState, String> {
           state = state.copyWith(
             phase: ToolJobPhase.done,
             resultUrl: status.resultUrl,
+            mediaType: status.mediaType,
             costPaise: status.costPaise,
           );
           return;
