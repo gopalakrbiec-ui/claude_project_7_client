@@ -80,22 +80,27 @@ class _CoinPainter extends CustomPainter {
       radius * 0.78,
       Paint()..color = const Color(0xFFFFD54F),
     );
-    // Dollar/coin symbol
-    final tp = TextPainter(
-      text: const TextSpan(
-        text: '✦',
-        style: TextStyle(
-          color: Color(0xFFFF8F00),
-          fontSize: 9,
-          fontWeight: FontWeight.w900,
-          height: 1,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(
-      canvas,
-      Offset(center.dx - tp.width / 2, center.dy - tp.height / 2),
+    // Diamond shape in center
+    final diamondSize = radius * 0.45;
+    final diamondPath = Path()
+      ..moveTo(center.dx, center.dy - diamondSize)        // top
+      ..lineTo(center.dx + diamondSize * 0.65, center.dy) // right
+      ..lineTo(center.dx, center.dy + diamondSize)        // bottom
+      ..lineTo(center.dx - diamondSize * 0.65, center.dy) // left
+      ..close();
+    canvas.drawPath(
+      diamondPath,
+      Paint()..color = const Color(0xFFFF8F00),
+    );
+    // Diamond highlight — small lighter triangle on top half
+    final highlightPath = Path()
+      ..moveTo(center.dx, center.dy - diamondSize)
+      ..lineTo(center.dx + diamondSize * 0.65, center.dy)
+      ..lineTo(center.dx, center.dy)
+      ..close();
+    canvas.drawPath(
+      highlightPath,
+      Paint()..color = const Color(0xFFFFCC02).withValues(alpha: 0.5),
     );
   }
 
