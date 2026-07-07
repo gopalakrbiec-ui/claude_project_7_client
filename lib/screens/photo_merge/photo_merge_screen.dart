@@ -458,7 +458,6 @@ class _AddSlotButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final size = (MediaQuery.sizeOf(context).width - kSpaceMd * 2 - 10) / 2;
 
     return GestureDetector(

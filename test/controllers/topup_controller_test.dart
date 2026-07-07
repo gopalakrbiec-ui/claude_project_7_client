@@ -30,7 +30,7 @@ final _kPaymentOrder = PaymentOrder(
 
 CreditsBalance _balance(int paise) => CreditsBalance(
       balancePaise: paise,
-      balanceRupees: '₹${paise ~/ 100}',
+      balanceCoins: paise ~/ 100,
     );
 
 // ---------------------------------------------------------------------------
