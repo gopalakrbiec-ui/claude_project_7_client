@@ -19,6 +19,7 @@ import '../../widgets/error_view.dart';
 import '../../api/api_error.dart';
 import '../../widgets/insufficient_credits_dialog.dart';
 import '../../repositories/prompts_repository.dart';
+import '../../repositories/currency_repository.dart';
 import '../../widgets/keyword_tag_picker.dart';
 
 // ---------------------------------------------------------------------------
@@ -375,13 +376,14 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-class _PriceRow extends StatelessWidget {
+class _PriceRow extends ConsumerWidget {
   const _PriceRow({required this.template, required this.canAfford});
   final Template template;
   final bool canAfford;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currency = currencyOrFallback(ref.watch(currencyInfoProvider));
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -402,7 +404,7 @@ class _PriceRow extends StatelessWidget {
         children: [
           Text('Price', style: theme.textTheme.bodyMedium),
           Text(
-            template.priceDisplay,
+            template.priceCoins(currency.symbol),
             style: theme.textTheme.titleMedium?.copyWith(
               color: canAfford ? kSaffron : theme.colorScheme.error,
               fontWeight: FontWeight.w700,

@@ -14,6 +14,7 @@ import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../core/token_storage.dart';
 import '../../models/order_summary.dart';
+import '../../repositories/currency_repository.dart';
 import '../../repositories/orders_repository.dart';
 import '../../widgets/error_view.dart';
 
@@ -404,13 +405,14 @@ String _formatDate(int unixSeconds) {
   return '${dt.day}/${dt.month}/${dt.year}';
 }
 
-class _AiCreationCard extends StatelessWidget {
+class _AiCreationCard extends ConsumerWidget {
   const _AiCreationCard({required this.job});
   final CompletedToolJob job;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final currency = currencyOrFallback(ref.watch(currencyInfoProvider));
     final isActive = job.status == ToolJobStatus.active;
     final isFailed = job.status == ToolJobStatus.failed;
 
@@ -419,7 +421,7 @@ class _AiCreationCard extends StatelessWidget {
         '/home/tools/job/${job.jobId}',
         extra: {
           'toolName': job.toolName,
-          'costDisplay': job.costDisplay,
+          'costDisplay': job.costCoins(currency.symbol),
         },
       ),
       child: SizedBox(
@@ -484,7 +486,7 @@ class _AiCreationCard extends StatelessWidget {
                   ? 'Processing…'
                   : isFailed
                       ? 'Failed'
-                      : job.costDisplay,
+                      : job.costCoins(currency.symbol),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: isActive
                     ? const Color(0xFFFF6B23)

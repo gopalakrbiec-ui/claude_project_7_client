@@ -7,6 +7,7 @@ import '../../controllers/credits_controller.dart';
 import '../../controllers/topup_controller.dart';
 import '../../core/constants.dart';
 import '../../models/payment_order.dart';
+import '../../repositories/currency_repository.dart';
 
 // ---------------------------------------------------------------------------
 // TopupScreen
@@ -207,11 +208,12 @@ class _PickAmountBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final currency = currencyOrFallback(ref.watch(currencyInfoProvider));
     final currentBalancePaise =
         (balanceAsync.valueOrNull?.balancePaise as int?) ?? 0;
     final currentBalanceDisplay = balanceAsync.when(
-      data: (b) => (b.balanceRupees as String?) ?? '₹ 0',
-      loading: () => '₹ …',
+      data: (b) => b.coinsDisplay(currency.symbol),
+      loading: () => '… ${currency.symbol}',
       error: (_, __) => 'Tap to retry',
     );
     final isLoading = topupState.isLoading;
@@ -269,18 +271,19 @@ class _PickAmountBody extends ConsumerWidget {
 
           return Column(
             children: packs.map((paise) {
-              final rupees = (paise / 100).toStringAsFixed(
+              final coins = paise ~/ 100;
+              final rupeesStr = (paise / 100).toStringAsFixed(
                   paise % 100 == 0 ? 0 : 2);
-              final afterTopup = currentBalancePaise + paise;
-              final afterRupees = (afterTopup / 100).toStringAsFixed(
-                  afterTopup % 100 == 0 ? 0 : 2);
+              final afterCoins =
+                  (currentBalancePaise + paise) ~/ 100;
               final isSelected = topupState.selectedAmountPaise == paise;
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: kSpaceSm),
                 child: _AmountCard(
-                  rupeesDisplay: rupees,
-                  afterRupeesDisplay: afterRupees,
+                  coinsLabel: '$coins ${currency.symbol}',
+                  rupeesLabel: '₹$rupeesStr',
+                  afterLabel: '$afterCoins ${currency.symbol}',
                   selected: isSelected,
                   disabled: isLoading,
                   onTap: () => ref
@@ -310,15 +313,20 @@ class _PickAmountBody extends ConsumerWidget {
 
 class _AmountCard extends StatelessWidget {
   const _AmountCard({
-    required this.rupeesDisplay,
-    required this.afterRupeesDisplay,
+    required this.coinsLabel,
+    required this.rupeesLabel,
+    required this.afterLabel,
     required this.selected,
     required this.disabled,
     required this.onTap,
   });
 
-  final String rupeesDisplay;
-  final String afterRupeesDisplay;
+  /// e.g. "100 🪙"
+  final String coinsLabel;
+  /// e.g. "₹100" — shown alongside for payment transparency
+  final String rupeesLabel;
+  /// e.g. "1100 🪙" — balance after top-up
+  final String afterLabel;
   final bool selected;
   final bool disabled;
   final VoidCallback onTap;
@@ -350,10 +358,19 @@ class _AmountCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Add ₹$rupeesDisplay',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700)),
-                Text('Balance after: ₹$afterRupeesDisplay',
+                // Primary: coin amount + rupee price side by side for clarity
+                Row(
+                  children: [
+                    Text('Buy $coinsLabel',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(width: 8),
+                    Text('for $rupeesLabel',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.outline)),
+                  ],
+                ),
+                Text('Balance after: $afterLabel',
                     style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.outline)),
               ],
@@ -411,6 +428,7 @@ class _SuccessBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currency = currencyOrFallback(ref.watch(currencyInfoProvider));
     final theme = Theme.of(context);
     final newBalance = topupState.newBalance;
 
@@ -427,7 +445,7 @@ class _SuccessBody extends ConsumerWidget {
             if (newBalance != null) ...[
               const SizedBox(height: kSpaceSm),
               Text(
-                'New balance: ${newBalance.balanceRupees}',
+                'New balance: ${newBalance.coinsDisplay(currency.symbol)}',
                 style: theme.textTheme.titleLarge?.copyWith(
                   color: theme.colorScheme.primary,
                   fontWeight: FontWeight.w700,

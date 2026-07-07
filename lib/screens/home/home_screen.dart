@@ -16,6 +16,7 @@ import '../../core/theme.dart';
 import '../../core/token_storage.dart';
 import '../../models/order_summary.dart';
 import '../../models/template.dart';
+import '../../repositories/currency_repository.dart';
 import '../../repositories/orders_repository.dart';
 import '../../repositories/tools_repository.dart';
 import '../../screens/inspire/inspire_screen.dart';
@@ -629,12 +630,13 @@ class _OrdersList extends StatelessWidget {
   }
 }
 
-class _OrderCard extends StatelessWidget {
+class _OrderCard extends ConsumerWidget {
   const _OrderCard({required this.order});
   final OrderSummary order;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currency = currencyOrFallback(ref.watch(currencyInfoProvider));
     final theme = Theme.of(context);
     final statusColor = order.isDone
         ? Colors.green
@@ -697,7 +699,7 @@ class _OrderCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          order.priceDisplay,
+                          order.priceCoins(currency.symbol),
                           style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant),
                         ),

@@ -19,7 +19,7 @@ class PersistedToolJob {
     required this.toolName,
     required this.status,
     this.resultUrl,
-    required this.costDisplay,
+    required this.costPaise,
     required this.isVideo,
     this.createdAt,
   });
@@ -28,22 +28,24 @@ class PersistedToolJob {
   final String toolName;
   final ToolJobStatus status;
   final String? resultUrl;
-  final String costDisplay;
+  final int costPaise;
   final bool isVideo;
   /// Unix timestamp (seconds) when the job was submitted.
   final int? createdAt;
 
+  String costCoins(String symbol) => '${costPaise ~/ 100} $symbol';
+
   PersistedToolJob copyWith({
     ToolJobStatus? status,
     String? resultUrl,
-    String? costDisplay,
+    int? costPaise,
   }) =>
       PersistedToolJob(
         jobId: jobId,
         toolName: toolName,
         status: status ?? this.status,
         resultUrl: resultUrl ?? this.resultUrl,
-        costDisplay: costDisplay ?? this.costDisplay,
+        costPaise: costPaise ?? this.costPaise,
         isVideo: isVideo,
         createdAt: createdAt,
       );
@@ -53,7 +55,7 @@ class PersistedToolJob {
         'toolName': toolName,
         'status': status.name,
         'resultUrl': resultUrl,
-        'costDisplay': costDisplay,
+        'costPaise': costPaise,
         'isVideo': isVideo,
         'createdAt': createdAt,
       };
@@ -67,7 +69,7 @@ class PersistedToolJob {
           orElse: () => ToolJobStatus.active,
         ),
         resultUrl: json['resultUrl'] as String?,
-        costDisplay: json['costDisplay'] as String? ?? '',
+        costPaise: (json['costPaise'] as num?)?.toInt() ?? 0,
         isVideo: json['isVideo'] as bool? ?? false,
         createdAt: (json['createdAt'] as num?)?.toInt(),
       );
@@ -174,7 +176,7 @@ class BackgroundToolJobsController
       jobId: jobId,
       toolName: toolName,
       status: ToolJobStatus.active,
-      costDisplay: '',
+      costPaise: 0,
       isVideo: isVideo,
       createdAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
     );
@@ -193,7 +195,7 @@ class BackgroundToolJobsController
           jobId,
           status: ToolJobStatus.done,
           resultUrl: jobState.resultUrl,
-          costDisplay: jobState.costDisplay,
+          costPaise: jobState.costPaise,
         );
       } else if (jobState.phase == ToolJobPhase.failed ||
           jobState.phase == ToolJobPhase.timeout ||
@@ -207,14 +209,14 @@ class BackgroundToolJobsController
     String jobId, {
     required ToolJobStatus status,
     String? resultUrl,
-    String? costDisplay,
+    int? costPaise,
   }) {
     final updated = state.jobs.map((j) {
       if (j.jobId != jobId) return j;
       return j.copyWith(
         status: status,
         resultUrl: resultUrl,
-        costDisplay: costDisplay,
+        costPaise: costPaise,
       );
     }).toList();
 

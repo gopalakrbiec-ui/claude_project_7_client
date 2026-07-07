@@ -2,21 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../controllers/credits_controller.dart';
+import '../repositories/currency_repository.dart';
 
-/// AppBar action chip showing the user's credit balance.
-/// Reads balance_rupees from the server — never divides balance_paise itself.
+/// AppBar action chip showing the user's balance in Savi Coins.
 class BalanceChip extends ConsumerWidget {
   const BalanceChip({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final balanceAsync = ref.watch(creditsControllerProvider);
+    final currency = currencyOrFallback(ref.watch(currencyInfoProvider));
 
     final label = balanceAsync.when(
-      loading: () => '₹ …',
-      error: (_, __) => '₹ ?',
-      // balance_rupees is already formatted by the server.
-      data: (b) => b.balanceRupees,
+      loading: () => '… ${currency.symbol}',
+      error: (_, __) => '? ${currency.symbol}',
+      data: (b) => b.coinsDisplay(currency.symbol),
     );
 
     return Padding(
@@ -29,21 +29,13 @@ class BalanceChip extends ConsumerWidget {
             color: Colors.white24,
             borderRadius: BorderRadius.circular(24),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.monetization_on_rounded,
-                  size: 22, color: Color(0xFFFFD700)),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  fontSize: 15,
-                ),
-              ),
-            ],
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              fontSize: 15,
+            ),
           ),
         ),
       ),

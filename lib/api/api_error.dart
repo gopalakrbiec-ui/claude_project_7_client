@@ -5,7 +5,7 @@ sealed class ApiError {
 }
 
 /// 402 Payment Required — not enough credits.
-/// Carries the raw paise values so the UI can show "you have ₹X, need ₹Y".
+/// Carries the raw paise values so the UI can convert to coins for display.
 final class InsufficientCreditsError extends ApiError {
   const InsufficientCreditsError({
     required this.availablePaise,
@@ -14,15 +14,11 @@ final class InsufficientCreditsError extends ApiError {
   final int availablePaise;
   final int requiredPaise;
 
-  String get availableDisplay {
-    final r = availablePaise / 100;
-    return r == r.truncateToDouble() ? '₹${r.toInt()}' : '₹${r.toStringAsFixed(2)}';
-  }
+  /// "5 🪙" — pass symbol from currencyInfoProvider.
+  String availableCoins(String symbol) => '${availablePaise ~/ 100} $symbol';
 
-  String get requiredDisplay {
-    final r = requiredPaise / 100;
-    return r == r.truncateToDouble() ? '₹${r.toInt()}' : '₹${r.toStringAsFixed(2)}';
-  }
+  /// "10 🪙" — pass symbol from currencyInfoProvider.
+  String requiredCoins(String symbol) => '${requiredPaise ~/ 100} $symbol';
 
   @override
   String toString() => 'InsufficientCreditsError(have $availablePaise, need $requiredPaise)';

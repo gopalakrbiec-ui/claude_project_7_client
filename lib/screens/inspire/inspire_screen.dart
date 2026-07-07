@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../core/constants.dart';
 import '../../core/theme.dart';
+import '../../repositories/currency_repository.dart';
 import '../../repositories/inspire_repository.dart';
 import '../../repositories/tools_repository.dart';
 import '../../screens/tools/tools_screen.dart' show toolsListProvider, ToolWorkScreen;
@@ -412,7 +413,7 @@ class _PhotoCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Tool picker bottom sheet
 // ---------------------------------------------------------------------------
-class _ToolPickerSheet extends StatelessWidget {
+class _ToolPickerSheet extends ConsumerWidget {
   const _ToolPickerSheet({required this.tools});
   final List<AiToolDef> tools;
 
@@ -448,7 +449,8 @@ class _ToolPickerSheet extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currency = currencyOrFallback(ref.watch(currencyInfoProvider));
     final theme = Theme.of(context);
     return Container(
       decoration: BoxDecoration(
@@ -522,8 +524,8 @@ class _ToolPickerSheet extends StatelessWidget {
                   ),
                   title: Text(tool.name,
                       style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: tool.costDisplay.isNotEmpty
-                      ? Text(tool.costDisplay,
+                  subtitle: tool.costPaise > 0
+                      ? Text(tool.coinsDisplay(currency.symbol),
                           style: TextStyle(
                               color: theme.colorScheme.onSurfaceVariant,
                               fontSize: 12))

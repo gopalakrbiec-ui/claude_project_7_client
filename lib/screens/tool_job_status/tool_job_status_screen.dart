@@ -14,6 +14,7 @@ import 'package:video_player/video_player.dart';
 import '../../controllers/tool_job_controller.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
+import '../../repositories/currency_repository.dart';
 import '../../repositories/tools_repository.dart' show AiToolDef, toolsRepositoryProvider;
 import '../tools/tools_screen.dart' show toolsListProvider, ToolWorkScreen;
 
@@ -128,7 +129,9 @@ class _ToolJobStatusScreenState extends ConsumerState<ToolJobStatusScreen> {
         return _DoneBody(
           resultUrl: state.resultUrl,
           isVideo: isVideo,
-          costDisplay: state.costPaise > 0 ? state.costDisplay : widget.costDisplay,
+          costDisplay: state.costPaise > 0
+              ? state.costCoins(currencyOrFallback(ref.read(currencyInfoProvider)).symbol)
+              : widget.costDisplay,
           isDownloading: _isDownloading,
           onShare: () => _share(isVideo),
           onSave: () => _save(isVideo),

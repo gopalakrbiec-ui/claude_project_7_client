@@ -31,12 +31,17 @@ class Template {
   final int basePricePaise;
   final List<String> assetKeys;
 
-  String get priceDisplay {
-    final rupees = basePricePaise / 100;
-    return rupees == rupees.truncateToDouble()
-        ? '₹${rupees.toInt()}'
-        : '₹${rupees.toStringAsFixed(2)}';
+  /// "12 🪙" — pass the symbol from currencyInfoProvider.
+  String priceCoins(String symbol) => '${basePricePaise ~/ 100} $symbol';
+
+  /// Legacy rupee display — used in the top-up screen alongside coin amounts.
+  String get priceRupees {
+    final r = basePricePaise / 100;
+    return r == r.truncateToDouble() ? '₹${r.toInt()}' : '₹${r.toStringAsFixed(2)}';
   }
+
+  @Deprecated('Use priceCoins(symbol) for display')
+  String get priceDisplay => priceRupees;
 
   /// Best available thumbnail: imageUrl → previewUrl → first assetKey.
   String? get thumbnailKey =>

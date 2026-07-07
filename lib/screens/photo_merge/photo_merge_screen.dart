@@ -10,6 +10,7 @@ import '../../controllers/background_tool_jobs_controller.dart';
 import '../../controllers/tool_job_controller.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
+import '../../repositories/currency_repository.dart';
 import '../../repositories/tools_repository.dart';
 import '../../widgets/balance_chip.dart';
 import '../../widgets/insufficient_credits_dialog.dart';
@@ -140,11 +141,14 @@ class _PhotoMergeScreenState extends ConsumerState<PhotoMergeScreen> {
             isVideo: false,
           );
 
+      final symbol = currencyOrFallback(
+              ref.read(currencyInfoProvider))
+          .symbol;
       context.push(
         '/home/tools/job/${job.jobId}',
         extra: {
           'toolName': widget.tool.name,
-          'costDisplay': widget.tool.costDisplay,
+          'costDisplay': widget.tool.coinsDisplay(symbol),
         },
       );
     } on InsufficientCreditsError catch (e) {
@@ -175,6 +179,7 @@ class _PhotoMergeScreenState extends ConsumerState<PhotoMergeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currency = currencyOrFallback(ref.watch(currencyInfoProvider));
     final theme = Theme.of(context);
     final canAddSlot = _photos.length < _kMaxPhotos;
 
@@ -200,7 +205,7 @@ class _PhotoMergeScreenState extends ConsumerState<PhotoMergeScreen> {
                     color: Colors.white, size: 18),
                 const SizedBox(width: 8),
                 Text(
-                  'Merge up to 4 photos with AI · ${widget.tool.costDisplay} per creation',
+                  'Merge up to 4 photos with AI · ${widget.tool.coinsDisplay(currency.symbol)} per creation',
                   style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -322,7 +327,7 @@ class _PhotoMergeScreenState extends ConsumerState<PhotoMergeScreen> {
                 ? 'Uploading & Merging…'
                 : _filledCount < _kMinPhotos
                     ? 'Add at least 2 photos'
-                    : 'Run Photo Merge · ${widget.tool.costDisplay}'),
+                    : 'Run Photo Merge · ${widget.tool.coinsDisplay(currency.symbol)}'),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
               backgroundColor: kSaffron,

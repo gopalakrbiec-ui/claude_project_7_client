@@ -15,6 +15,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../controllers/order_status_controller.dart';
 import '../../core/constants.dart';
 import '../../models/order.dart';
+import '../../repositories/currency_repository.dart';
 import '../../repositories/orders_repository.dart';
 import '../../repositories/tools_repository.dart' show AiToolDef;
 import '../tools/tools_screen.dart' show toolsListProvider, ToolWorkScreen;
@@ -610,7 +611,7 @@ class _ShiningPainter extends CustomPainter {
 
 // ---------------------------------------------------------------------------
 
-class _DoneBody extends StatelessWidget {
+class _DoneBody extends ConsumerWidget {
   const _DoneBody({
     super.key,
     required this.state,
@@ -629,12 +630,15 @@ class _DoneBody extends StatelessWidget {
   final VoidCallback? onAnimate;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final currency = currencyOrFallback(ref.watch(currencyInfoProvider));
     final displayUrl = state.displayUrl;
     final hasCleanVersion = state.cleanUrl != null;
     final isRemoving = state.phase == OrderPhase.removingWatermark;
-    final priceDisplay = state.order?.priceDisplay ?? '';
+    final priceDisplay = state.order != null
+        ? state.order!.priceCoins(currency.symbol)
+        : '';
 
     return Column(
       children: [

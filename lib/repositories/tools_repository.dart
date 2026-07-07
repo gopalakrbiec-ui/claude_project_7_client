@@ -57,6 +57,9 @@ class AiToolDef {
             const [],
       );
 
+  /// "12 🪙" — pass symbol from currencyInfoProvider.
+  String coinsDisplay(String symbol) => '${costPaise ~/ 100} $symbol';
+
   static String _formatPaise(int paise) {
     final r = paise / 100;
     return r == r.truncateToDouble() ? '₹${r.toInt()}' : '₹${r.toStringAsFixed(2)}';

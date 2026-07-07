@@ -36,6 +36,10 @@ class ToolJobState {
       phase == ToolJobPhase.timeout ||
       phase == ToolJobPhase.networkError;
 
+  /// "12 🪙" — pass symbol from currencyInfoProvider.
+  String costCoins(String symbol) => '${costPaise ~/ 100} $symbol';
+
+  @Deprecated('Use costCoins(symbol)')
   String get costDisplay {
     final r = costPaise / 100;
     return r == r.truncateToDouble()

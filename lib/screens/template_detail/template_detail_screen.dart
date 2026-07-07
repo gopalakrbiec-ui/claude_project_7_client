@@ -7,6 +7,7 @@ import '../../controllers/templates_controller.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../models/template.dart';
+import '../../repositories/currency_repository.dart';
 import '../../repositories/templates_repository.dart';
 import '../../widgets/error_view.dart';
 
@@ -69,6 +70,7 @@ class _DetailContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final currency = currencyOrFallback(ref.watch(currencyInfoProvider));
     final balanceAsync = ref.watch(creditsControllerProvider);
     final canAfford =
         balanceAsync.valueOrNull?.canAfford(template.basePricePaise) ?? true;
@@ -114,7 +116,7 @@ class _DetailContent extends ConsumerWidget {
                     children: [
                       Text('Price  ', style: theme.textTheme.bodyMedium),
                       Text(
-                        template.priceDisplay,
+                        template.priceCoins(currency.symbol),
                         style: theme.textTheme.titleLarge?.copyWith(
                           color: theme.colorScheme.primary,
                           fontWeight: FontWeight.w700,

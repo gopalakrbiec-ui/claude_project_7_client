@@ -25,6 +25,10 @@ class OrderSummary {
       status == 'processing';
   bool get isFailed => status == 'failed' || status == 'rejected';
 
+  /// "12 🪙" — pass symbol from currencyInfoProvider.
+  String priceCoins(String symbol) => '${pricePaise ~/ 100} $symbol';
+
+  @Deprecated('Use priceCoins(symbol)')
   String get priceDisplay {
     final r = pricePaise / 100;
     return r == r.truncateToDouble() ? '₹${r.toInt()}' : '₹${r.toStringAsFixed(2)}';

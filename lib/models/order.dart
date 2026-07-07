@@ -19,7 +19,10 @@ class Order {
 
   final String templateId;
   final int pricePaise;
-  final String priceDisplay;
+  final String priceDisplay; // legacy rupee display from server
+
+  /// "12 🪙" — pass symbol from currencyInfoProvider.
+  String priceCoins(String symbol) => '${pricePaise ~/ 100} $symbol';
 
   /// Watermarked result URL — present when status == 'done'.
   final String? resultUrl;

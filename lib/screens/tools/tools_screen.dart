@@ -19,6 +19,7 @@ import '../../repositories/tools_repository.dart';
 import '../../widgets/balance_chip.dart';
 import '../../widgets/error_view.dart';
 import '../../widgets/insufficient_credits_dialog.dart';
+import '../../repositories/currency_repository.dart';
 import '../../repositories/prompts_repository.dart';
 import '../../widgets/keyword_tag_picker.dart';
 
@@ -330,12 +331,13 @@ class _ToolGrid extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Glamorous tool card — image background + gradient overlay + icon badge
 // ---------------------------------------------------------------------------
-class _ToolCard extends StatelessWidget {
+class _ToolCard extends ConsumerWidget {
   const _ToolCard({required this.tool});
   final AiToolDef tool;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currency = currencyOrFallback(ref.watch(currencyInfoProvider));
     final cfg = _configFor(tool);
     final gradient = _gradientFor(tool.name);
     final icon = _iconFor(tool.name);
@@ -453,7 +455,7 @@ class _ToolCard extends StatelessWidget {
                             size: 12, color: Color(0xFFFFD700)),
                         const SizedBox(width: 3),
                         Text(
-                          tool.costDisplay,
+                          tool.coinsDisplay(currency.symbol),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -717,7 +719,8 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
                   const Icon(Icons.monetization_on_rounded,
                       size: 16, color: Color(0xFFFFD700)),
                   const SizedBox(width: 4),
-                  Text('Cost: ${widget.tool.costDisplay}',
+                  Text(
+                      'Cost: ${widget.tool.coinsDisplay(currencyOrFallback(ref.watch(currencyInfoProvider)).symbol)}',
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(fontWeight: FontWeight.w600)),
                 ],
@@ -825,11 +828,14 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
           );
 
       // Navigate to the status screen — user can browse from there.
+      final symbol = currencyOrFallback(
+              ref.read(currencyInfoProvider))
+          .symbol;
       context.push(
         '/home/tools/job/${job.jobId}',
         extra: {
           'toolName': widget.tool.name,
-          'costDisplay': widget.tool.costDisplay,
+          'costDisplay': widget.tool.coinsDisplay(symbol),
         },
       );
     } on InsufficientCreditsError catch (e) {

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../api/api_error.dart';
 import '../core/constants.dart';
 import '../core/theme.dart';
+import '../repositories/currency_repository.dart';
 
 /// Shows a bottom sheet when a 402 InsufficientCreditsError is received.
 /// Call [InsufficientCreditsDialog.show] from any widget.
-class InsufficientCreditsDialog extends StatelessWidget {
+class InsufficientCreditsDialog extends ConsumerWidget {
   const InsufficientCreditsDialog({super.key, required this.error});
   final InsufficientCreditsError error;
 
@@ -18,7 +20,8 @@ class InsufficientCreditsDialog extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currency = currencyOrFallback(ref.watch(currencyInfoProvider));
     final theme = Theme.of(context);
     return SafeArea(
       child: Padding(
@@ -43,7 +46,7 @@ class InsufficientCreditsDialog extends StatelessWidget {
             ),
             const SizedBox(height: kSpaceSm),
             Text(
-              'You need ${error.requiredDisplay} but only have ${error.availableDisplay}.',
+              'You need ${error.requiredCoins(currency.symbol)} but only have ${error.availableCoins(currency.symbol)}.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
