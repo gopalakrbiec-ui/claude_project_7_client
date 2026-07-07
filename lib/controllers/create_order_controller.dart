@@ -50,7 +50,9 @@ class CreateOrderState {
     this.errorMessage,
     this.createdOrder,
     this.isInsufficientCredits = false,
-  }) : photoSlots = photoSlots ?? const [PhotoSlot()];
+    Set<String>? selectedTags,
+  })  : photoSlots = photoSlots ?? const [PhotoSlot()],
+        selectedTags = selectedTags ?? const {};
 
   final String idempotencyKey;
   /// 1–4 photo slots; always has at least one entry.
@@ -64,6 +66,8 @@ class CreateOrderState {
   final String? errorMessage;
   final Order? createdOrder;
   final bool isInsufficientCredits;
+  /// Namespaced keyword tag keys, e.g. "location:beach".
+  final Set<String> selectedTags;
 
   bool get isAnyUploading => photoSlots.any((s) => s.uploading);
   bool get isSubmitting => status == CreateOrderStatus.submitting;
@@ -95,6 +99,7 @@ class CreateOrderState {
     bool clearError = false,
     Order? createdOrder,
     bool? isInsufficientCredits,
+    Set<String>? selectedTags,
   }) {
     return CreateOrderState(
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
@@ -108,6 +113,7 @@ class CreateOrderState {
       createdOrder: createdOrder ?? this.createdOrder,
       isInsufficientCredits:
           isInsufficientCredits ?? this.isInsufficientCredits,
+      selectedTags: selectedTags ?? this.selectedTags,
     );
   }
 }
@@ -135,6 +141,16 @@ class CreateOrderController
 
   void setPrompt(String value) =>
       state = state.copyWith(userPrompt: value, clearError: true);
+
+  void toggleTag(String tagKey) {
+    final tags = Set<String>.from(state.selectedTags);
+    if (tags.contains(tagKey)) {
+      tags.remove(tagKey);
+    } else {
+      tags.add(tagKey);
+    }
+    state = state.copyWith(selectedTags: tags);
+  }
 
   void setAspectRatio(String value) =>
       state = state.copyWith(aspectRatio: value);
@@ -234,6 +250,7 @@ class CreateOrderController
                   : state.userPrompt.trim(),
               aspectRatio: state.aspectRatio,
               customerPhone: state.customerPhone,
+              keywordTags: state.selectedTags.toList(),
             ),
           );
       dev.log('[CreateOrder] success — orderId=${order.id}', name: 'order');
@@ -282,6 +299,7 @@ class CreateOrderController
     state = CreateOrderState(
       idempotencyKey: newKey,
       photoSlots: const [PhotoSlot()],
+      selectedTags: const {},
     );
   }
 }

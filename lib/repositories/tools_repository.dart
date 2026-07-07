@@ -165,6 +165,7 @@ class ToolsRepository {
     String? photoKey,
     String sourceFieldName = 'photo_key',
     Map<String, String>? extraFields,
+    List<String> keywordTags = const [],
   }) async {
     try {
       final body = <String, dynamic>{};
@@ -174,6 +175,7 @@ class ToolsRepository {
           if (e.value.isNotEmpty) body[e.key] = e.value;
         }
       }
+      if (keywordTags.isNotEmpty) body['keyword_tags'] = keywordTags;
 
       final response = await _dio.post<Map<String, dynamic>>(
         '/tools/$toolId',

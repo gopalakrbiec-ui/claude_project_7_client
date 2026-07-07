@@ -25,6 +25,7 @@ class CreateOrderParams {
     this.userPrompt,
     this.aspectRatio = '9:16',
     this.customerPhone,
+    this.keywordTags = const [],
   });
 
   final String templateId;
@@ -33,6 +34,7 @@ class CreateOrderParams {
   final String? userPrompt;
   final String aspectRatio;
   final String? customerPhone;
+  final List<String> keywordTags;
 }
 
 class OrdersRepository {
@@ -74,6 +76,8 @@ class OrdersRepository {
           'user_photo_keys': params.userPhotoKeys,
         if (params.userPrompt != null && params.userPrompt!.isNotEmpty)
           'user_prompt': params.userPrompt,
+        if (params.keywordTags.isNotEmpty)
+          'keyword_tags': params.keywordTags,
         'aspect_ratio': params.aspectRatio,
         'input_payload': {
           if (params.customerPhone != null && params.customerPhone!.isNotEmpty)

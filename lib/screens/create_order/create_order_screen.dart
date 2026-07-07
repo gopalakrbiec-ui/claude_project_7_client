@@ -18,6 +18,8 @@ import '../../repositories/templates_repository.dart';
 import '../../widgets/error_view.dart';
 import '../../api/api_error.dart';
 import '../../widgets/insufficient_credits_dialog.dart';
+import '../../repositories/prompts_repository.dart';
+import '../../widgets/keyword_tag_picker.dart';
 
 // ---------------------------------------------------------------------------
 // Entry — resolves template then delegates to content widget
@@ -225,7 +227,7 @@ class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
                   ),
                   const SizedBox(height: kSpaceLg),
 
-                  // ── Prompt ──────────────────────────────────────────────
+                  // ── Prompt + keyword tags ───────────────────────────────
                   _SectionLabel(
                     icon: Icons.edit_note,
                     label: 'Add Details (optional)',
@@ -243,6 +245,16 @@ class _CreateOrderContentState extends ConsumerState<_CreateOrderContent> {
                     textCapitalization: TextCapitalization.sentences,
                     onChanged: ctrl.setPrompt,
                   ),
+                  const SizedBox(height: kSpaceMd),
+                  ref.watch(promptKeywordGroupsProvider).when(
+                        data: (groups) => KeywordTagPicker(
+                          groups: groups,
+                          selected: state.selectedTags,
+                          onToggle: ctrl.toggleTag,
+                        ),
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                      ),
                   const SizedBox(height: kSpaceLg),
 
                   // ── Aspect ratio ────────────────────────────────────────

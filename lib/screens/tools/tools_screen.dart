@@ -19,6 +19,8 @@ import '../../repositories/tools_repository.dart';
 import '../../widgets/balance_chip.dart';
 import '../../widgets/error_view.dart';
 import '../../widgets/insufficient_credits_dialog.dart';
+import '../../repositories/prompts_repository.dart';
+import '../../widgets/keyword_tag_picker.dart';
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -47,6 +49,8 @@ class _ToolInputConfig {
     this.thumbnailUrl = '',
     this.isVideo = false,
     this.hasVideoDuration = false,
+    this.hasKeywordTags = false,
+    this.promptOptional = false,
   });
 
   final bool needsPhoto;
@@ -64,6 +68,10 @@ class _ToolInputConfig {
   final String thumbnailUrl;
   final bool isVideo;
   final bool hasVideoDuration;
+  // Show keyword tag picker below the prompt field.
+  final bool hasKeywordTags;
+  // When true, tags alone satisfy the prompt requirement (text-to-image only).
+  final bool promptOptional;
 }
 
 _ToolInputConfig _configFor(AiToolDef tool) {
@@ -135,6 +143,7 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       promptLabel: 'Remix Style',
       promptHint: 'Describe how you want to transform the photo…',
       thumbnailUrl: 'https://picsum.photos/seed/remix91/400/400',
+      hasKeywordTags: true,
     );
   }
   if (n.contains('text to image') || n.contains('text-to-image') || n.contains('text2image')) {
@@ -142,9 +151,11 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       needsPhoto: false,
       needsTargetPhoto: false,
       needsPrompt: true,
+      promptOptional: true,
       promptLabel: 'Describe the image',
       promptHint: 'e.g. A beautiful sunset over the Himalayas with golden light…',
       thumbnailUrl: 'https://picsum.photos/seed/textimg14/400/400',
+      hasKeywordTags: true,
     );
   }
   // Video generation tools
@@ -494,6 +505,8 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   // Duration selection for animate-photo: must match backend enum '4s','6s','8s'.
   String _animateDuration = '4s';
 
+  Set<String> _selectedTags = {};
+
   bool _processing = false;
   String? _error;
 
@@ -543,7 +556,13 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
     if (_uploadingSource || _uploadingTarget || _processing) return false;
     if (_cfg.needsPhoto && _sourcePhotoKey == null) return false;
     if (_cfg.needsTargetPhoto && _targetPhotoKey == null) return false;
-    if (_cfg.needsPrompt && _promptCtrl.text.trim().isEmpty) return false;
+    if (_cfg.needsPrompt) {
+      final hasText = _promptCtrl.text.trim().isNotEmpty;
+      final hasTags = _selectedTags.isNotEmpty;
+      // promptOptional: tags alone are sufficient (text-to-image).
+      // Otherwise: must have prompt text (tags are supplementary only).
+      if (!hasText && !(_cfg.promptOptional && hasTags)) return false;
+    }
     // Optional-photo tools: need at least a prompt (already checked above) or a photo.
     // If needsPrompt is false and photo is optional, require at least a photo.
     if (_cfg.photoOptional && !_cfg.needsPrompt && _sourcePhotoKey == null) return false;
@@ -620,6 +639,30 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
                   hintText: _cfg.promptHint,
                 ),
               ),
+              const SizedBox(height: kSpaceMd),
+            ],
+
+            if (_cfg.hasKeywordTags) ...[
+              _SectionLabel('Style Tags (optional)'),
+              const SizedBox(height: kSpaceSm),
+              ref.watch(promptKeywordGroupsProvider).when(
+                    data: (groups) => KeywordTagPicker(
+                      groups: groups,
+                      selected: _selectedTags,
+                      onToggle: (key) =>
+                          setState(() {
+                            final tags = Set<String>.from(_selectedTags);
+                            if (tags.contains(key)) {
+                              tags.remove(key);
+                            } else {
+                              tags.add(key);
+                            }
+                            _selectedTags = tags;
+                          }),
+                    ),
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                  ),
               const SizedBox(height: kSpaceMd),
             ],
 
@@ -765,6 +808,7 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
             photoKey: (_cfg.needsPhoto || _cfg.photoOptional) ? _sourcePhotoKey : null,
             sourceFieldName: _cfg.sourcePhotoFieldName,
             extraFields: allFields.isEmpty ? null : allFields,
+            keywordTags: _selectedTags.toList(),
           );
 
       if (!mounted) return;
