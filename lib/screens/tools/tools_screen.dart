@@ -34,6 +34,9 @@ final toolsListProvider = FutureProvider.autoDispose<List<AiToolDef>>((ref) {
 // Per-tool configuration — all inputs and field names hardcoded because
 // the backend's needs_* flags are unreliable.
 // ---------------------------------------------------------------------------
+/// A label/value pair for a duration chip.
+typedef _DurationOption = ({String label, String value});
+
 class _ToolInputConfig {
   const _ToolInputConfig({
     required this.needsPhoto,
@@ -50,6 +53,7 @@ class _ToolInputConfig {
     this.thumbnailUrl = '',
     this.isVideo = false,
     this.hasVideoDuration = false,
+    this.videoDurationOptions = _kDefaultDurationOptions,
     this.hasKeywordTags = false,
     this.promptOptional = false,
   });
@@ -69,11 +73,43 @@ class _ToolInputConfig {
   final String thumbnailUrl;
   final bool isVideo;
   final bool hasVideoDuration;
+  // Per-tool duration options: label shown to user, value sent to backend.
+  final List<_DurationOption> videoDurationOptions;
   // Show keyword tag picker below the prompt field.
   final bool hasKeywordTags;
   // When true, tags alone satisfy the prompt requirement (text-to-image only).
   final bool promptOptional;
+
+  String get defaultDuration => videoDurationOptions.first.value;
 }
+
+// animate-photo backend expects '4s', '6s', '8s'
+const _kDefaultDurationOptions = <_DurationOption>[
+  (label: '4 seconds', value: '4s'),
+  (label: '6 seconds', value: '6s'),
+  (label: '8 seconds', value: '8s'),
+];
+
+// Kling backend expects '5' or '10' (integer strings, no suffix)
+const _kKlingDurationOptions = <_DurationOption>[
+  (label: '5 seconds', value: '5'),
+  (label: '10 seconds', value: '10'),
+];
+
+// Seedance backend expects '2'–'12' (integer strings, no suffix)
+const _kSeedanceDurationOptions = <_DurationOption>[
+  (label: '4 seconds', value: '4'),
+  (label: '6 seconds', value: '6'),
+  (label: '8 seconds', value: '8'),
+  (label: '10 seconds', value: '10'),
+];
+
+// Veo / Wan / generic video: use plain integer strings to be safe
+const _kGenericVideoDurationOptions = <_DurationOption>[
+  (label: '4 seconds', value: '4'),
+  (label: '6 seconds', value: '6'),
+  (label: '8 seconds', value: '8'),
+];
 
 _ToolInputConfig _configFor(AiToolDef tool) {
   final n = tool.name.toLowerCase();
@@ -175,6 +211,7 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       thumbnailUrl: 'https://picsum.photos/seed/veo33/400/400',
       isVideo: true,
       hasVideoDuration: true,
+      videoDurationOptions: _kGenericVideoDurationOptions,
     );
   }
   if (n.contains('seedance') || n.contains('seed dance')) {
@@ -190,6 +227,7 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       thumbnailUrl: 'https://picsum.photos/seed/seedance21/400/400',
       isVideo: true,
       hasVideoDuration: true,
+      videoDurationOptions: _kSeedanceDurationOptions,
     );
   }
   if (n.contains('kling')) {
@@ -205,6 +243,7 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       thumbnailUrl: 'https://picsum.photos/seed/kling67/400/400',
       isVideo: true,
       hasVideoDuration: true,
+      videoDurationOptions: _kKlingDurationOptions,
     );
   }
   if (n.contains('wan') || n.contains('wanx')) {
@@ -220,6 +259,7 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       thumbnailUrl: 'https://picsum.photos/seed/wan49/400/400',
       isVideo: true,
       hasVideoDuration: true,
+      videoDurationOptions: _kGenericVideoDurationOptions,
     );
   }
   if (n.contains('video') || n.contains('text to video') || n.contains('text-to-video')) {
@@ -235,6 +275,7 @@ _ToolInputConfig _configFor(AiToolDef tool) {
       thumbnailUrl: 'https://picsum.photos/seed/videogen58/400/400',
       isVideo: true,
       hasVideoDuration: true,
+      videoDurationOptions: _kGenericVideoDurationOptions,
     );
   }
   // Fallback: honour server flags, generic field name
@@ -504,8 +545,8 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
   String? _targetPhotoKey;
   bool _uploadingTarget = false;
 
-  // Duration selection for animate-photo: must match backend enum '4s','6s','8s'.
-  String _animateDuration = '4s';
+  // Duration value sent to backend — initialised from the tool's first option.
+  late String _animateDuration = _cfg.defaultDuration;
 
   Set<String> _selectedTags = {};
 
@@ -671,26 +712,14 @@ class _ToolWorkScreenState extends ConsumerState<ToolWorkScreen> {
             if (_cfg.hasVideoDuration) ...[
               _SectionLabel('Duration'),
               const SizedBox(height: kSpaceSm),
-              Row(
-                children: [
-                  _DurationChip(
-                    label: '4 seconds',
-                    selected: _animateDuration == '4s',
-                    onTap: () => setState(() => _animateDuration = '4s'),
-                  ),
-                  const SizedBox(width: 12),
-                  _DurationChip(
-                    label: '6 seconds',
-                    selected: _animateDuration == '6s',
-                    onTap: () => setState(() => _animateDuration = '6s'),
-                  ),
-                  const SizedBox(width: 12),
-                  _DurationChip(
-                    label: '8 seconds',
-                    selected: _animateDuration == '8s',
-                    onTap: () => setState(() => _animateDuration = '8s'),
-                  ),
-                ],
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: _cfg.videoDurationOptions.map((opt) => _DurationChip(
+                  label: opt.label,
+                  selected: _animateDuration == opt.value,
+                  onTap: () => setState(() => _animateDuration = opt.value),
+                )).toList(),
               ),
               const SizedBox(height: kSpaceMd),
             ],
