@@ -14,8 +14,8 @@ const double kSpaceLg = 24.0;
 const double kSpaceXl = 32.0;
 
 // Network
-const Duration kConnectTimeout = Duration(seconds: 10);
-const Duration kReceiveTimeout = Duration(seconds: 30);
+const Duration kConnectTimeout = Duration(seconds: 20);
+const Duration kReceiveTimeout = Duration(seconds: 60);
 
 // Order-status polling — exponential backoff
 // Sequence: 3s → 4.5s → 6.75s → 10.1s → 15.2s → 22.8s → 30s (cap)
