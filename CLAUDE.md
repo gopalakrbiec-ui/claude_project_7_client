@@ -2,7 +2,7 @@
 
 ## Project
 
-Thin Android client (Flutter) for an AI life-event editing app for rural India.
+Thin Android client (Flutter) for an AI life-event editing app for customers across India.
 
 **User flow:** Phone OTP auth → top up credits via UPI → pick a template → enter event details + photo → pay per creation → download and share result to WhatsApp.
 
